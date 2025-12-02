@@ -25,8 +25,8 @@ public class BukkitListener extends VPNExecutor implements Listener {
 
     @Override
     public void registerListeners() {
-        BukkitPlugin.pluginInstance.getServer().getPluginManager()
-                .registerEvents(this, BukkitPlugin.pluginInstance);
+        Bukkit.getPluginManager()
+                .registerEvents(this, BukkitPlugin.pluginInstance.getPlugin());
     }
 
     @Override
@@ -53,7 +53,7 @@ public class BukkitListener extends VPNExecutor implements Listener {
     @Override
     public void disablePlugin() {
         HandlerList.unregisterAll(this);
-        BukkitPlugin.pluginInstance.getServer().getPluginManager().disablePlugin(BukkitPlugin.pluginInstance);
+        Bukkit.getPluginManager().disablePlugin(BukkitPlugin.pluginInstance.getPlugin());
     }
 
     @EventHandler(priority = EventPriority.HIGH)

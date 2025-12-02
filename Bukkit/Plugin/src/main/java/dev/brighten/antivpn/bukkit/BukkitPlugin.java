@@ -7,29 +7,41 @@ import dev.brighten.antivpn.database.VPNDatabase;
 import dev.brighten.antivpn.database.local.H2VPN;
 import dev.brighten.antivpn.database.mongo.MongoVPN;
 import dev.brighten.antivpn.database.sql.MySqlVPN;
+import dev.brighten.antivpn.loader.LoaderBootstrap;
 import lombok.Getter;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
 import org.bukkit.Bukkit;
 import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.event.HandlerList;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.SimplePluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class BukkitPlugin extends JavaPlugin {
+public class BukkitPlugin implements LoaderBootstrap {
 
     public static BukkitPlugin pluginInstance;
     private SimpleCommandMap commandMap;
+    @Getter
+    private File dataFolder;
     private final List<org.bukkit.command.Command> registeredCommands = new ArrayList<>();
+    @Getter
+    private Plugin plugin;
 
     @Getter
     private PlayerCommandRunner playerCommandRunner;
+
+    @Override
+    public void onLoad(File dataFolder) {
+        this.dataFolder = dataFolder;
+    }
 
     public void onEnable() {
         pluginInstance = this;
@@ -40,21 +52,23 @@ public class BukkitPlugin extends JavaPlugin {
         playerCommandRunner = new PlayerCommandRunner();
         playerCommandRunner.start();
 
+        plugin = Bukkit.getPluginManager().getPlugin("AntiVPN");
+
         // Loading our bStats metrics to be pushed to https://bstats.org
         if(AntiVPN.getInstance().getVpnConfig().metrics()) {
             Bukkit.getLogger().info("Starting bStats metrics...");
-            Metrics metrics = new Metrics(this, 12615);
+            Metrics metrics = new Metrics((JavaPlugin) plugin, 12615);
             metrics.addCustomChart(new SimplePie("database_used", this::getDatabaseType));
             new BukkitRunnable() {
                 public void run() {
                     AntiVPN.getInstance().checked = AntiVPN.getInstance().detections = 0;
                 }
-            }.runTaskTimerAsynchronously(this, 12000, 12000);
+            }.runTaskTimerAsynchronously(plugin, 12000, 12000);
         }
 
         Bukkit.getLogger().info("Setting up and registering commands...");
         // We need access to the commandMap to register our commands without using the "proper" method
-        if (pluginInstance.getServer().getPluginManager() instanceof SimplePluginManager manager) {
+        if (Bukkit.getServer().getPluginManager() instanceof SimplePluginManager manager) {
             try {
                 Field field = SimplePluginManager.class.getDeclaredField("commandMap");
                 field.setAccessible(true);
@@ -73,7 +87,7 @@ public class BukkitPlugin extends JavaPlugin {
             registeredCommands.add(newCommand);
 
             // This tells Bukkit to register our command for use.
-            commandMap.register(pluginInstance.getName(), newCommand);
+            commandMap.register(plugin.getName(), newCommand);
         }
 
         //TODO Finish system before implementing on startup
@@ -83,7 +97,7 @@ public class BukkitPlugin extends JavaPlugin {
                 .get());
         AntiVPN.getInstance().getMessageHandler().reloadStrings();*/
 
-        reloadConfig();
+        plugin.reloadConfig();
     }
 
     @Override
@@ -109,10 +123,10 @@ public class BukkitPlugin extends JavaPlugin {
         }
 
         Bukkit.getLogger().info("Unregistering listeners...");
-        HandlerList.unregisterAll(this);
+        HandlerList.unregisterAll(plugin);
 
         Bukkit.getLogger().info("Cancelling any running tasks...");
-        Bukkit.getScheduler().cancelTasks(this);
+        Bukkit.getScheduler().cancelTasks(plugin);
     }
 
     private String getDatabaseType() {

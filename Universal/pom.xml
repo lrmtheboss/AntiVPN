@@ -25,8 +25,8 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>dev.brighten.antivpn</groupId>
-            <artifactId>Bukkit</artifactId>
+            <groupId>dev.brighten.antivpn.bukkit</groupId>
+            <artifactId>Loader</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>

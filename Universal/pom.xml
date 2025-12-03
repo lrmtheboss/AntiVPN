@@ -20,7 +20,7 @@
     <dependencies>
         <dependency>
             <groupId>dev.brighten.antivpn</groupId>
-            <artifactId>Common</artifactId>
+            <artifactId>Source</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>

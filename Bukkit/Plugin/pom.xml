@@ -83,7 +83,7 @@
             <groupId>dev.brighten.antivpn</groupId>
             <artifactId>Source</artifactId>
             <version>1.9.4</version>
-            <scope>compile</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.bstats</groupId>

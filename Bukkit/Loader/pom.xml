@@ -53,6 +53,10 @@
                                     <resource>antivpn-bukkit.jarinjar</resource>
                                     <file>${project.parent.basedir}/Plugin/target/Plugin-${project.version}.jar</file>
                                 </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                    <resource>antivpn-source.jarinjar</resource>
+                                    <file>${project.parent.parent.basedir}/Common/Source/target/Source-${project.version}.jar</file>
+                                </transformer>
                             </transformers>
                         </configuration>
                     </execution>

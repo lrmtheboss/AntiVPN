@@ -20,6 +20,7 @@ import java.util.logging.Logger;
 public class VelocityPluginLoader {
 
     private static final String JAR_NAME = "antivpn-velocity.jarinjar";
+    private static final String SOURCE_NAME = "antivpn-source.jarinjar";
     private static final String BOOTSTRAP_CLASS = "dev.brighten.antivpn.velocity.VelocityPlugin";
 
     private final LoaderBootstrap plugin;
@@ -32,7 +33,7 @@ public class VelocityPluginLoader {
         instances.put(Path.class, path);
         instances.put(String.class, metricsFactory);
         instances.put(LoaderBootstrap.class, this);
-        JarInJarClassLoader loader = new JarInJarClassLoader(getClass().getClassLoader(), JAR_NAME);
+        JarInJarClassLoader loader = new JarInJarClassLoader(getClass().getClassLoader(), JAR_NAME, SOURCE_NAME);
         this.plugin = loader.instantiatePlugin(BOOTSTRAP_CLASS, Map.class, instances);
         plugin.onLoad(path.toFile());
     }

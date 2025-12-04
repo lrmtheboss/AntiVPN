@@ -7,12 +7,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class BukkitLoaderPlugin extends JavaPlugin {
 
     private static final String JAR_NAME = "antivpn-bukkit.jarinjar";
+    private static final String SOURCE_NAME = "antivpn-source.jarinjar";
     private static final String BOOTSTRAP_CLASS = "dev.brighten.antivpn.bukkit.BukkitPlugin";
 
     private final LoaderBootstrap plugin;
 
     public BukkitLoaderPlugin() {
-        JarInJarClassLoader loader = new JarInJarClassLoader(getClass().getClassLoader(), JAR_NAME);
+        JarInJarClassLoader loader = new JarInJarClassLoader(getClass().getClassLoader(), JAR_NAME, SOURCE_NAME);
         this.plugin = loader.instantiatePlugin(BOOTSTRAP_CLASS, JavaPlugin.class, this);
     }
 

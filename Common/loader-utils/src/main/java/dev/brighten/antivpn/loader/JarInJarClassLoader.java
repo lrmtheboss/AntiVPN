@@ -35,14 +35,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 
 /**
  * Classloader that can load a jar from within another jar file.
  *
- * <p>The "loader" jar contains the loading code & public API classes,
+ * <p>The "loader" jar contains the loading code & public API classes
  * and is class-loaded by the platform.</p>
  *
- * <p>The inner "plugin" jar contains the plugin itself, and is class-loaded
+ * <p>The inner "plugin" jar contains the plugin itself and is class-loaded
  * by the loading code & this classloader.</p>
  */
 public class JarInJarClassLoader extends URLClassLoader {
@@ -57,8 +58,10 @@ public class JarInJarClassLoader extends URLClassLoader {
      * @param jarResourcePath the path to the jar-in-jar resource within the loader jar
      * @throws LoadingException if something unexpectedly bad happens
      */
-    public JarInJarClassLoader(ClassLoader loaderClassLoader, String jarResourcePath) throws LoadingException {
-        super(new URL[]{extractJar(loaderClassLoader, jarResourcePath)}, loaderClassLoader);
+    public JarInJarClassLoader(ClassLoader loaderClassLoader, String... jarResourcePath) throws LoadingException {
+        super(Arrays.stream(jarResourcePath)
+                .map(path -> extractJar(loaderClassLoader, path))
+                .toArray(URL[]::new), loaderClassLoader);
     }
 
     public void addJarToClasspath(URL url) {
@@ -127,10 +130,10 @@ public class JarInJarClassLoader extends URLClassLoader {
         }
 
         // create a temporary file
-        // on posix systems by default this is only read/writable by the process owner
+        // on posix systems; by default, this is only read/writable by the process owner
         Path path;
         try {
-            path = Files.createTempFile("luckperms-jarinjar", ".jar.tmp");
+            path = Files.createTempFile(jarResourcePath, ".jar.tmp");
         } catch (IOException e) {
             throw new LoadingException("Unable to create a temporary file", e);
         }

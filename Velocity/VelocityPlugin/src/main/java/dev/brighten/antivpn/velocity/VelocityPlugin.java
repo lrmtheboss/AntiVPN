@@ -1,11 +1,5 @@
 package dev.brighten.antivpn.velocity;
 
-import com.google.inject.Inject;
-import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
-import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
-import com.velocitypowered.api.plugin.Plugin;
-import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import dev.brighten.antivpn.AntiVPN;
 import dev.brighten.antivpn.command.Command;
@@ -13,18 +7,20 @@ import dev.brighten.antivpn.database.VPNDatabase;
 import dev.brighten.antivpn.database.local.H2VPN;
 import dev.brighten.antivpn.database.mongo.MongoVPN;
 import dev.brighten.antivpn.database.sql.MySqlVPN;
+import dev.brighten.antivpn.loader.LoaderBootstrap;
 import dev.brighten.antivpn.velocity.command.VelocityCommand;
 import lombok.Getter;
 import org.bstats.charts.SimplePie;
 import org.bstats.velocity.Metrics;
 
 import javax.annotation.Nullable;
+import java.io.File;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.logging.Logger;
 
 @Getter
-@Plugin(id = "kaurivpn", name = "KauriVPN", version = "1.7.1", authors = {"funkemunky"})
-public class VelocityPlugin {
+public class VelocityPlugin implements LoaderBootstrap {
 
     private final ProxyServer server;
     private final Logger logger;
@@ -37,52 +33,14 @@ public class VelocityPlugin {
 
     public static VelocityPlugin INSTANCE;
 
-    @Inject
-    public VelocityPlugin(ProxyServer server, Logger logger, @DataDirectory Path path, Metrics.Factory metricsFactory) {
-        this.server = server;
-        this.logger = logger;
-        this.configDir = path;
-        this.metricsFactory = metricsFactory;
-    }
+    private final Object pluginInstance;
 
-    @Subscribe
-    public void onInit(ProxyInitializeEvent event) {
-        INSTANCE = this;
-        logger.info("Loading config...");
-
-        //Loading plugin
-        logger.info("Starting AntiVPN services...");
-        AntiVPN.start(new VelocityListener(), new VelocityPlayerExecutor(), configDir.toFile());
-
-        if(AntiVPN.getInstance().getVpnConfig().metrics()) {
-            logger.info("Starting metrics...");
-            metrics = metricsFactory.make(this, 12791);
-
-            metrics.addCustomChart(new SimplePie("database_used", this::getDatabaseType));
-        }
-
-        logger.info("Registering commands...");
-        for (Command command : AntiVPN.getInstance().getCommands()) {
-            server.getCommandManager().register(server.getCommandManager().metaBuilder(command.name())
-                            .aliases(command.aliases()).build(), new VelocityCommand(command));
-        }
-    }
-
-    @Subscribe
-    public void onDisable(ProxyShutdownEvent event) {
-        logger.info("Disabling AntiVPN...");
-        AntiVPN.getInstance().getExecutor().log("Disabling AntiVPN...");
-
-        if (AntiVPN.getInstance().getDatabase() != null) {
-            AntiVPN.getInstance().stop();
-        }
-
-        if (metrics != null) {
-            metrics = null;
-        }
-
-        INSTANCE = null;
-        logger.info("Disabled AntiVPN.");
+    public VelocityPlugin(Map<Class<?>, Object> objectsMap) {
+        this.server = (ProxyServer) objectsMap.get(ProxyServer.class);
+        this.logger = (Logger) objectsMap.get(Logger.class);
+        this.configDir = (Path) objectsMap.get(Path.class);
+        this.metricsFactory = (Metrics.Factory) objectsMap.get(String.class);
+        this.pluginInstance = objectsMap.get(LoaderBootstrap.class);
     }
 
     private String getDatabaseType() {
@@ -97,5 +55,51 @@ public class VelocityPlugin {
         } else {
             return "No-Database";
         }
+    }
+
+    @Override
+    public void onLoad(File dataFolder) {
+
+    }
+
+    @Override
+    public void onEnable() {
+        INSTANCE = this;
+        logger.info("Loading config...");
+
+        //Loading plugin
+        logger.info("Starting AntiVPN services...");
+        AntiVPN.start(new VelocityListener(), new VelocityPlayerExecutor(), configDir.toFile());
+
+
+        if(AntiVPN.getInstance().getVpnConfig().metrics()) {
+            logger.info("Starting metrics...");
+            metrics = metricsFactory.make(pluginInstance, 12791);
+
+            metrics.addCustomChart(new SimplePie("database_used", this::getDatabaseType));
+        }
+
+        logger.info("Registering commands...");
+        for (Command command : AntiVPN.getInstance().getCommands()) {
+            server.getCommandManager().register(server.getCommandManager().metaBuilder(command.name())
+                    .aliases(command.aliases()).build(), new VelocityCommand(command));
+        }
+    }
+
+    @Override
+    public void onDisable() {
+        logger.info("Disabling AntiVPN...");
+        AntiVPN.getInstance().getExecutor().log("Disabling AntiVPN...");
+
+        if (AntiVPN.getInstance().getDatabase() != null) {
+            AntiVPN.getInstance().stop();
+        }
+
+        if (metrics != null) {
+            metrics = null;
+        }
+
+        INSTANCE = null;
+        logger.info("Disabled AntiVPN.");
     }
 }

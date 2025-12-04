@@ -20,14 +20,14 @@ public class VelocityListener extends VPNExecutor {
     @Override
     public void registerListeners() {
         VelocityPlugin.INSTANCE.getServer().getEventManager()
-                .register(VelocityPlugin.INSTANCE, this);
+                .register(VelocityPlugin.INSTANCE.getPluginInstance(), this);
 
-        VelocityPlugin.INSTANCE.getServer().getEventManager().register(VelocityPlugin.INSTANCE, DisconnectEvent.class,
+        VelocityPlugin.INSTANCE.getServer().getEventManager().register(VelocityPlugin.INSTANCE.getPluginInstance(), DisconnectEvent.class,
                 event -> AntiVPN.getInstance()
                         .getPlayerExecutor()
                         .unloadPlayer(event.getPlayer().getUniqueId()));
 
-        VelocityPlugin.INSTANCE.getServer().getEventManager().register(VelocityPlugin.INSTANCE, LoginEvent.class,
+        VelocityPlugin.INSTANCE.getServer().getEventManager().register(VelocityPlugin.INSTANCE.getPluginInstance(), LoginEvent.class,
                 event -> {
             APIPlayer player = AntiVPN.getInstance().getPlayerExecutor().getPlayer(event.getPlayer().getUniqueId())
                     .orElse(new OfflinePlayer(
@@ -100,7 +100,7 @@ public class VelocityListener extends VPNExecutor {
         if(AntiVPN.getInstance().getVpnConfig().kickPlayersOnDetect()) {
             switch (checkResult.resultType()) {
                 case DENIED_PROXY -> VelocityPlugin.INSTANCE.getServer().getScheduler()
-                            .buildTask(VelocityPlugin.INSTANCE, () ->
+                            .buildTask(VelocityPlugin.INSTANCE.getPluginInstance(), () ->
                                     event.getPlayer().disconnect(LegacyComponentSerializer.builder()
                                             .character('&')
                                             .build().deserialize(AntiVPN.getInstance().getVpnConfig()
@@ -110,7 +110,7 @@ public class VelocityListener extends VPNExecutor {
                                                     .replace("%code%", result.getCountryCode()))))
                             .delay(1, TimeUnit.SECONDS).schedule();
                 case DENIED_COUNTRY -> VelocityPlugin.INSTANCE.getServer().getScheduler()
-                            .buildTask(VelocityPlugin.INSTANCE, () ->
+                            .buildTask(VelocityPlugin.INSTANCE.getPluginInstance(), () ->
                                     event.getPlayer().disconnect(LegacyComponentSerializer.builder()
                                             .character('&')
                                             .build().deserialize(AntiVPN.getInstance().getVpnConfig()
@@ -191,7 +191,7 @@ public class VelocityListener extends VPNExecutor {
 
     @Override
     public void disablePlugin() {
-        VelocityPlugin.INSTANCE.getServer().getEventManager().unregisterListener(VelocityPlugin.INSTANCE, this);
+        VelocityPlugin.INSTANCE.getServer().getEventManager().unregisterListener(VelocityPlugin.INSTANCE.getPluginInstance(), this);
         VelocityPlugin.INSTANCE.getServer().getCommandManager().unregister("antivpn");
     }
 }

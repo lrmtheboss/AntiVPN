@@ -38,7 +38,7 @@
         </dependency>
         <dependency>
             <groupId>dev.brighten.antivpn</groupId>
-            <artifactId>Velocity</artifactId>
+            <artifactId>VelocityPlugin</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>

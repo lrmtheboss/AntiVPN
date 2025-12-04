@@ -14,7 +14,6 @@ import org.bstats.charts.SimplePie;
 import org.bukkit.Bukkit;
 import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.event.HandlerList;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.SimplePluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -33,7 +32,11 @@ public class BukkitPlugin implements LoaderBootstrap {
     private File dataFolder;
     private final List<org.bukkit.command.Command> registeredCommands = new ArrayList<>();
     @Getter
-    private Plugin plugin;
+    private final JavaPlugin plugin;
+
+    public BukkitPlugin(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
 
     @Getter
     private PlayerCommandRunner playerCommandRunner;
@@ -52,12 +55,10 @@ public class BukkitPlugin implements LoaderBootstrap {
         playerCommandRunner = new PlayerCommandRunner();
         playerCommandRunner.start();
 
-        plugin = Bukkit.getPluginManager().getPlugin("AntiVPN");
-
         // Loading our bStats metrics to be pushed to https://bstats.org
         if(AntiVPN.getInstance().getVpnConfig().metrics()) {
             Bukkit.getLogger().info("Starting bStats metrics...");
-            Metrics metrics = new Metrics((JavaPlugin) plugin, 12615);
+            Metrics metrics = new Metrics(plugin, 12615);
             metrics.addCustomChart(new SimplePie("database_used", this::getDatabaseType));
             new BukkitRunnable() {
                 public void run() {

@@ -16,6 +16,8 @@
         <module>Velocity</module>
         <module>Sponge</module>
         <module>Universal</module>
+        <module>Velocity/VelocityLoader</module>
+        <module>Velocity/VelocityPlugin</module>
     </modules>
 
     <properties>

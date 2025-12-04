@@ -19,12 +19,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>dev.brighten.antivpn</groupId>
-            <artifactId>Source</artifactId>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
             <groupId>dev.brighten.antivpn.bukkit</groupId>
             <artifactId>Loader</artifactId>
             <version>${project.version}</version>
@@ -32,13 +26,13 @@
         </dependency>
         <dependency>
             <groupId>dev.brighten.antivpn</groupId>
-            <artifactId>Bungee</artifactId>
+            <artifactId>VelocityLoader</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>dev.brighten.antivpn</groupId>
-            <artifactId>VelocityPlugin</artifactId>
+            <groupId>dev.brighten.antivpn.bungee</groupId>
+            <artifactId>BungeeLoader</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
@@ -61,6 +55,10 @@
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                    <resource>antivpn-source.jarinjar</resource>
+                                    <file>${project.parent.basedir}/Common/Source/target/Source-${project.version}.jar</file>
+                                </transformer>
                             </transformers>
                             <relocations>
                                 <relocation>

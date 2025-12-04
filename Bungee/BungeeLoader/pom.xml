@@ -5,24 +5,19 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>dev.brighten.antivpn</groupId>
-        <artifactId>Bukkit</artifactId>
+        <artifactId>Bungee</artifactId>
         <version>1.9.4</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>Plugin</artifactId>
+    <groupId>dev.brighten.antivpn.bungee</groupId>
+    <artifactId>BungeeLoader</artifactId>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
-
-    <repositories>
-        <repository>
-            <id>spigot-repo</id>
-            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
-        </repository>
-    </repositories>
 
     <build>
         <plugins>
@@ -48,17 +43,12 @@
                         </goals>
                         <configuration>
                             <minimizeJar>false</minimizeJar>
-                            <relocations>
-                                <relocation>
-                                    <pattern>org.bstats</pattern>
-                                    <!-- Replace this with your package! -->
-                                    <shadedPattern>dev.brighten.antivpn.bukkit.org.bstats</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.yaml.snakeyaml</pattern>
-                                    <shadedPattern>dev.brighten.antivpn.shaded.org.yaml.snakeyaml</shadedPattern>
-                                </relocation>
-                            </relocations>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                    <resource>antivpn-bungee.jarinjar</resource>
+                                    <file>${project.parent.basedir}/BungeePlugin/target/BungeePlugin-${project.version}.jar</file>
+                                </transformer>
+                            </transformers>
                         </configuration>
                     </execution>
                 </executions>
@@ -74,28 +64,23 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>1.20.2-R0.1-SNAPSHOT</version>
+            <groupId>net.md-5</groupId>
+            <artifactId>bungeecord-api</artifactId>
+            <version>1.21-R0.2</version>
+            <type>jar</type>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>dev.brighten.antivpn</groupId>
-            <artifactId>Source</artifactId>
-            <version>1.9.4</version>
+            <artifactId>Plugin</artifactId>
+            <version>${project.version}</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.bstats</groupId>
-            <artifactId>bstats-bukkit</artifactId>
-            <version>2.2.1</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>dev.brighten.antivpn</groupId>
             <artifactId>loader-utils</artifactId>
             <version>1.9.4</version>
-            <scope>provided</scope>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 

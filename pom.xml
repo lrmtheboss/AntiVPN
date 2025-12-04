@@ -18,6 +18,8 @@
         <module>Universal</module>
         <module>Velocity/VelocityLoader</module>
         <module>Velocity/VelocityPlugin</module>
+        <module>Bungee/BungeeLoader</module>
+        <module>Bungee/BungeePlugin</module>
     </modules>
 
     <properties>

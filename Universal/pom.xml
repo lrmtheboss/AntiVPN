@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.brighten.antivpn</groupId>
         <artifactId>AntiVPN</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>1.9.4</version>
     </parent>
 
     <artifactId>Universal</artifactId>
@@ -14,30 +14,25 @@
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <dependencies>
         <dependency>
-            <groupId>dev.brighten.antivpn</groupId>
-            <artifactId>Common</artifactId>
+            <groupId>dev.brighten.antivpn.bukkit</groupId>
+            <artifactId>Loader</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>dev.brighten.antivpn</groupId>
-            <artifactId>Bukkit</artifactId>
+            <artifactId>VelocityLoader</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>dev.brighten.antivpn</groupId>
-            <artifactId>Bungee</artifactId>
-            <version>${project.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>dev.brighten.antivpn</groupId>
-            <artifactId>Velocity</artifactId>
+            <groupId>dev.brighten.antivpn.bungee</groupId>
+            <artifactId>BungeeLoader</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
@@ -60,6 +55,10 @@
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                    <resource>antivpn-source.jarinjar</resource>
+                                    <file>${project.parent.basedir}/Common/Source/target/Source-${project.version}.jar</file>
+                                </transformer>
                             </transformers>
                             <relocations>
                                 <relocation>

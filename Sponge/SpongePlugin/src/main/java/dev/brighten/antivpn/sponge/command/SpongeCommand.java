@@ -33,7 +33,7 @@ public class SpongeCommand implements org.spongepowered.api.command.Command.Raw 
         val children = command.children();
 
         if(children.length > 0 && args.length > 0) {
-            for (dev.brighten.antivpn.command.Command child : children) {
+            for (Command child : children) {
                 if(child.name().equalsIgnoreCase(args[0]) || Arrays.stream(child.aliases())
                         .anyMatch(alias -> alias.equalsIgnoreCase(args[0]))) {
                     if(!sender.hasPermission("antivpn.command.*")
@@ -65,7 +65,7 @@ public class SpongeCommand implements org.spongepowered.api.command.Command.Raw 
         val children = command.children();
         String[] args = arguments.input().split(" ");
         if(children.length > 0 && args.length > 0) {
-            for (dev.brighten.antivpn.command.Command child : children) {
+            for (Command child : children) {
                 if(child.name().equalsIgnoreCase(args[0])  || Arrays.stream(child.aliases())
                         .anyMatch(alias2 -> alias2.equalsIgnoreCase(args[0]))) {
                     return child.tabComplete(new SpongeCommandExecutor(sender), "alias", IntStream

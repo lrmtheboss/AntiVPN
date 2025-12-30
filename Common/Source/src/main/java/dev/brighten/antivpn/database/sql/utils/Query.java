@@ -1,20 +1,20 @@
 package dev.brighten.antivpn.database.sql.utils;
 
+import lombok.Getter;
+import org.intellij.lang.annotations.Language;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 
 public class Query {
+    @Getter
     private static Connection conn;
 
     public static void use(Connection conn) {
         Query.conn = conn;
     }
 
-    public static ExecutableStatement prepare(String query) {
-        try {
-            return new ExecutableStatement(conn.prepareStatement(query));
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+    public static ExecutableStatement prepare(@Language("SQL") String sql) throws SQLException {
+        return new ExecutableStatement(conn.prepareStatement(sql));
     }
 }

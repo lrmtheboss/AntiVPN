@@ -5,11 +5,10 @@ import dev.brighten.antivpn.api.VPNConfig;
 import dev.brighten.antivpn.api.VPNExecutor;
 import dev.brighten.antivpn.command.Command;
 import dev.brighten.antivpn.command.impl.AntiVPNCommand;
-import dev.brighten.antivpn.database.Database;
-import dev.brighten.antivpn.database.mongodb.MongoDatabase;
-import dev.brighten.antivpn.database.postgres.PostgresDatabase;
-import dev.brighten.antivpn.database.sqllite.LiteDatabase;
-import dev.brighten.antivpn.database.sqllite.version.Version;
+import dev.brighten.antivpn.database.VPNDatabase;
+import dev.brighten.antivpn.database.local.H2VPN;
+import dev.brighten.antivpn.database.mongo.MongoVPN;
+import dev.brighten.antivpn.database.sql.MySqlVPN;
 import dev.brighten.antivpn.depends.LibraryLoader;
 import dev.brighten.antivpn.depends.MavenLibrary;
 import dev.brighten.antivpn.depends.Relocate;
@@ -30,23 +29,27 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Getter
 @Setter(AccessLevel.PRIVATE)
-@MavenLibrary(groupId = "org\\.sqlite", artifactId ="sqlite-jdbc", version = "3.48.0.0", relocations = {
-        @Relocate(from ="org" + ".\\sqlite", to ="dev.brighten.antivpn.shaded.org.sqlite")})
+@MavenLibrary(groupId = "com.h2database", artifactId ="h2", version = "2.2.220", relocations = {
+        @Relocate(from ="org" + ".\\h2", to ="dev.brighten.antivpn.shaded.org.h2")})
+@MavenLibrary(groupId = "org.mongodb", artifactId = "mongo-java-driver", version = "3.12.14", relocations = {
+        @Relocate(from = "com." + "\\mongodb", to = "dev.brighten.antivpn.shaded.com.mongodb"),
+        @Relocate(from = "org" + "\\.bson", to = "dev.brighten.antivpn.shaded.org.bson")
+})
+@MavenLibrary(
+        groupId = "com.mysql",
+        artifactId = "mysql-connector-j",
+        version = "9.1.0",
+        relocations = {
+                @Relocate(from = "com.my\\" + "sql.cj", to = "dev.brighten.antivpn.shaded.com.mysql.cj"),
+                @Relocate(from = "com.my\\" + "sql.jdbc", to = "dev.brighten.antivpn.shaded.com.mysql.jdbc")
+        }
+)
 @MavenLibrary(groupId = "com.\\github\\.ben-manes\\.caffeine", artifactId = "caffeine", version = "3.1.8",
         relocations = {
                 @Relocate(from = "com\\.github\\.benmanes\\.caffeine", to = "dev.brighten.antivpn.shaded.com.github.benmanes.caffeine"),
-        })
-@MavenLibrary(groupId = "org\\.postgresql", artifactId = "postgresql", version = "42.7.6",
-        relocations = {
-                @Relocate(from = "org\\.postgresql", to = "dev.brighten.antivpn.shaded.org.postgresql")
-        })
-@MavenLibrary(groupId = "com\\.mongodb", artifactId = "driver-sync", version = "5.5.0",
-        relocations = {
-                @Relocate(from = "com\\.mongodb.client", to = "dev.brighten.antivpn.shaded.com.mongodb.client")
         })
 public class AntiVPN {
 
@@ -54,7 +57,7 @@ public class AntiVPN {
     private VPNConfig vpnConfig;
     private VPNExecutor executor;
     private PlayerExecutor playerExecutor;
-    private Database database;
+    private VPNDatabase database;
     private MessageHandler messageHandler;
     private Configuration config;
     private List<Command> commands = new ArrayList<>();
@@ -71,8 +74,6 @@ public class AntiVPN {
         INSTANCE.playerExecutor = playerExecutor;
 
         LibraryLoader.loadAll(INSTANCE);
-
-        Version.register();
 
         try {
             File configFile = new File(pluginFolder, "config.yml");
@@ -97,16 +98,41 @@ public class AntiVPN {
 
         INSTANCE.messageHandler = new MessageHandler();
 
-        INSTANCE.database = switch (INSTANCE.vpnConfig.getDatabaseType().toLowerCase()) {
-            case "sqlite", "sqllite" -> new LiteDatabase();
-            case "postgresql", "postgres" -> new PostgresDatabase();
-            case "mongo", "mongodb" -> new MongoDatabase();
-            default ->
-                    throw new IllegalStateException("Unexpected database type set at config.yml 'database.type': \""
-                            + INSTANCE.vpnConfig.getDatabaseType().toLowerCase() + "\"!" +
-                            "Available types: 'sqlite', 'postgresql', 'mongodb'");
-        };
-        INSTANCE.database.init();
+        try {
+            switch(INSTANCE.vpnConfig.getDatabaseType().toLowerCase()) {
+                case "h2":
+                case "local":
+                case "flatfile": {
+                    AntiVPN.getInstance().getExecutor().log("Using databaseType H2...");
+                    INSTANCE.database = new H2VPN();
+                    INSTANCE.database.init();
+                    break;
+                }
+                case "mysql":
+                case "sql":{
+                    AntiVPN.getInstance().getExecutor().log("Using databaseType MySQL...");
+                    INSTANCE.database = new MySqlVPN();
+                    INSTANCE.database.init();
+                    break;
+                }
+                case "mongo":
+                case "mongodb":
+                case "mongod": {
+                    INSTANCE.database = new MongoVPN();
+                    INSTANCE.database.init();
+                    break;
+                }
+                default: {
+                    AntiVPN.getInstance().getExecutor().log("Could not find database type \"" + INSTANCE.vpnConfig.getDatabaseType() + "\". " +
+                            "Options: [MySQL]");
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            AntiVPN.getInstance().getExecutor().logException("Could not initialize database, plugin disabling...", e);
+            executor.disablePlugin();
+            return;
+        }
 
         //Registering commands
         INSTANCE.registerCommands();
@@ -117,8 +143,7 @@ public class AntiVPN {
             //of unnecessary database queries.
             if(player.hasPermission("antivpn.command.alerts")) {
                 //Running database check for enabled alerts.
-                INSTANCE.database.updateAlertsState(player.getUuid(), true);
-                player.setAlertsEnabled(true);
+                INSTANCE.database.alertsState(player.getUuid(), player::setAlertsEnabled);
             }
         });
 
@@ -129,8 +154,6 @@ public class AntiVPN {
 
         // Starting kick checks
         AntiVPN.getInstance().getExecutor().startKickChecks();
-
-        AntiVPN.getInstance().runSpoiledResponseChecks();
     }
 
     public InputStream getResource(String filename) {
@@ -153,23 +176,56 @@ public class AntiVPN {
     }
 
     public void stop() {
-        executor.shutdown();
+        if (database instanceof H2VPN) {
+            database.shutdown();
+
+            // Try to deregister driver
+            try {
+                java.sql.Driver driver = java.sql.DriverManager.getDriver("jdbc:h2:");
+                if (driver != null) {
+                    java.sql.DriverManager.deregisterDriver(driver);
+                }
+            } catch (Exception e) {
+                // Log but don't throw
+                executor.log("Failed to deregister H2 driver: " + e.getMessage());
+            }
+        }
+        VPNExecutor.threadExecutor.shutdown();
         if(database != null) database.shutdown();
-    }
-
-    private void runSpoiledResponseChecks() {
-        if(database == null) return;
-
-        AntiVPN.getInstance().getExecutor().getThreadExecutor().scheduleAtFixedRate(
-                () -> database.clearOutdatedResponses(),
-                0, 30, TimeUnit.MINUTES
-        );
     }
 
     public void reloadDatabase() {
         database.shutdown();
 
-        INSTANCE.database = new LiteDatabase();
+        switch(AntiVPN.getInstance().getVpnConfig().getDatabaseType().toLowerCase()) {
+            case "h2":
+            case "local":
+            case "flatfile": {
+                AntiVPN.getInstance().getExecutor().log("Using databaseType H2...");
+                INSTANCE.database = new H2VPN();
+                INSTANCE.database.init();
+                break;
+            }
+            case "mysql":
+            case "sql":{
+                AntiVPN.getInstance().getExecutor().log("Using databaseType MySQL...");
+                INSTANCE.database = new MySqlVPN();
+                INSTANCE.database.init();
+                break;
+            }
+            case "mongo":
+            case "mongodb":
+            case "mongod": {
+                INSTANCE.database = new MongoVPN();
+                INSTANCE.database.init();
+                break;
+            }
+            default: {
+                AntiVPN.getInstance().getExecutor().log("Could not find database type \"" + INSTANCE.vpnConfig.getDatabaseType() + "\". " +
+                        "Options: [MySQL]");
+                break;
+            }
+        }
     }
 
     public static AntiVPN getInstance() {

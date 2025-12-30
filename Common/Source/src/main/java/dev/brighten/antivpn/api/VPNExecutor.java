@@ -17,13 +17,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public abstract class VPNExecutor {
-
-    @Getter
-    private final ScheduledExecutorService threadExecutor = Executors.newScheduledThreadPool(2);
+    public static ScheduledExecutorService threadExecutor = Executors.newScheduledThreadPool(2);
 
     @Getter
     private final Set<UUID> whitelisted = Collections.synchronizedSet(new HashSet<>());
-
     @Getter
     private final Set<String> whitelistedIps = Collections.synchronizedSet(new HashSet<>());
 
@@ -31,10 +28,6 @@ public abstract class VPNExecutor {
     private final List<Tuple<CheckResult, UUID>> toKick = Collections.synchronizedList(new LinkedList<>());
 
     public abstract void registerListeners();
-
-    public void shutdown() {
-        threadExecutor.shutdown();
-    }
 
     public abstract void log(Level level, String log, Object... objects);
 
@@ -73,35 +66,35 @@ public abstract class VPNExecutor {
     }
 
     public void handleKickingOfPlayer(CheckResult result, APIPlayer player) {
-        if (AntiVPN.getInstance().getVpnConfig().isAlertToStaff()) AntiVPN.getInstance().getPlayerExecutor()
+        if (AntiVPN.getInstance().getVpnConfig().alertToStaff()) AntiVPN.getInstance().getPlayerExecutor()
                 .getOnlinePlayers()
                 .stream()
                 .filter(APIPlayer::isAlertsEnabled)
                 .forEach(pl ->
                         pl.sendMessage(StringUtil.translateAlternateColorCodes('&',
                                 StringUtil.varReplace(dev.brighten.antivpn.AntiVPN.getInstance().getVpnConfig()
-                                        .getAlertMsg(), player, result.response()))));
+                                        .alertMessage(), player, result.response()))));
 
-        if(AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
+        if(AntiVPN.getInstance().getVpnConfig().kickPlayersOnDetect()) {
             switch (result.resultType()) {
                 case DENIED_PROXY -> player.kickPlayer(StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
-                        .getKickMessage(), player, result.response()));
+                        .getKickString(), player, result.response()));
                 case DENIED_COUNTRY -> player.kickPlayer(StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
-                        .getCountryVanillaKickReason(), player, result.response()));
+                        .countryVanillaKickReason(), player, result.response()));
             }
         }
 
-        if(!AntiVPN.getInstance().getVpnConfig().isCommandsEnabled()) return;
+        if(!AntiVPN.getInstance().getVpnConfig().runCommands()) return;
 
         switch (result.resultType()) {
             case DENIED_PROXY -> {
-                for (String command : AntiVPN.getInstance().getVpnConfig().getCommands()) {
+                for (String command : AntiVPN.getInstance().getVpnConfig().commands()) {
                     runCommand(StringUtil.translateAlternateColorCodes('&',
                             StringUtil.varReplace(command, player, result.response())));
                 }
             }
             case DENIED_COUNTRY -> {
-                for (String command : AntiVPN.getInstance().getVpnConfig().getCountryKickCommands()) {
+                for (String command : AntiVPN.getInstance().getVpnConfig().countryKickCommands()) {
                     runCommand(StringUtil.translateAlternateColorCodes('&',
                             StringUtil.varReplace(command, player, result.response())));
                 }

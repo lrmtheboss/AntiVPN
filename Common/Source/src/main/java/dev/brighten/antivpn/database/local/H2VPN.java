@@ -9,6 +9,7 @@ import dev.brighten.antivpn.database.sql.utils.MySQL;
 import dev.brighten.antivpn.database.sql.utils.Query;
 import dev.brighten.antivpn.web.objects.VPNResponse;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -87,13 +88,17 @@ public class H2VPN implements VPNDatabase {
 
         cachedResponses.put(toCache.getIp(), toCache);
 
-        Query.prepare("insert into `responses` (`ip`,`asn`,`countryName`,`countryCode`,`city`,`timeZone`,"
-                + "`method`,`isp`,`proxy`,`cached`,`inserted`,`latitude`,`longitude`) values (?,?,?,?,?,?,?,?,?,?,?,?,?)")
-                .append(toCache.getIp()).append(toCache.getAsn()).append(toCache.getCountryName())
-                .append(toCache.getCountryCode()).append(toCache.getCity()).append(toCache.getTimeZone())
-                .append(toCache.getMethod()).append(toCache.getIsp()).append(toCache.isProxy())
-                .append(toCache.isCached()).append(new Timestamp(System.currentTimeMillis()))
-                .append(toCache.getLatitude()).append(toCache.getLongitude()).execute();
+        try {
+            Query.prepare("insert into `responses` (`ip`,`asn`,`countryName`,`countryCode`,`city`,`timeZone`,"
+                            + "`method`,`isp`,`proxy`,`cached`,`inserted`,`latitude`,`longitude`) values (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+                    .append(toCache.getIp()).append(toCache.getAsn()).append(toCache.getCountryName())
+                    .append(toCache.getCountryCode()).append(toCache.getCity()).append(toCache.getTimeZone())
+                    .append(toCache.getMethod()).append(toCache.getIsp()).append(toCache.isProxy())
+                    .append(toCache.isCached()).append(new Timestamp(System.currentTimeMillis()))
+                    .append(toCache.getLatitude()).append(toCache.getLongitude()).execute();
+        } catch(SQLException e) {
+
+        }
     }
 
     @Override
@@ -101,18 +106,24 @@ public class H2VPN implements VPNDatabase {
         if(!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
             return;
 
-        Query.prepare("delete from `responses` where `ip` = ?").append(ip).execute();
+        try {
+            Query.prepare("delete from `responses` where `ip` = ?").append(ip).execute();
+        } catch (SQLException e) {
+            AntiVPN.getInstance().getExecutor().logException("Could not delete response from IP: " + ip, e);
+        }
     }
 
-    @SneakyThrows
     @Override
     public boolean isWhitelisted(UUID uuid) {
         if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
             return false;
-        ResultSet set = Query.prepare("select uuid from `whitelisted` where `uuid` = ? limit 1")
-                .append(uuid.toString()).executeQuery();
-
-        return set != null && set.next() && set.getString("uuid") != null;
+        try(ResultSet set = Query.prepare("select uuid from `whitelisted` where `uuid` = ? limit 1")
+                .append(uuid.toString()).executeQuery()) {
+            return set != null && set.next() && set.getString("uuid") != null;
+        } catch (SQLException e) {
+            AntiVPN.getInstance().getExecutor().logException("Could not check whitelist for uuid '" + uuid + "' due to SQL error.", e);
+            return false;
+        }
     }
 
     @SneakyThrows
@@ -252,25 +263,6 @@ public class H2VPN implements VPNDatabase {
         AntiVPN.getInstance().getExecutor().log("Creating tables...");
 
         //Running check for old table types to update
-
-        Query.prepare("create table if not exists `whitelisted` (`uuid` varchar(36) not null)").execute();
-        Query.prepare("create table if not exists `whitelisted-ips` (`ip` varchar(45) not null)").execute();
-        Query.prepare("create table if not exists `responses` (`ip` varchar(45) not null, `asn` varchar(12),"
-                + "`countryName` text, `countryCode` varchar(10), `city` text, `timeZone` varchar(64), "
-                + "`method` varchar(32), `isp` text, `proxy` boolean, `cached` boolean, `inserted` timestamp,"
-                + "`latitude` double, `longitude` double)").execute();
-        Query.prepare("create table if not exists `alerts` (`uuid` varchar(36) not null)").execute();
-
-        AntiVPN.getInstance().getExecutor().log("Creating indexes...");
-        try {
-            Query.prepare("create index if not exists `uuid_1` on `whitelisted` (`uuid`)").execute();
-            Query.prepare("create index if not exists `ip_1` on `responses` (`ip`)").execute();
-            Query.prepare("create index if not exists `proxy_1` on `responses` (`proxy`)").execute();
-            Query.prepare("create index if not exists `inserted_1` on `responses` (`inserted`)").execute();
-            Query.prepare("create index if not exists `ip_1` on `whitelisted-ips` (`ip`)").execute();
-        } catch (Exception e) {
-            System.err.println("MySQL Excepton created" + e.getMessage());
-        }
     }
 
     @Override

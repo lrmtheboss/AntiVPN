@@ -84,6 +84,7 @@ public class VPNConfig {
     private String password;
     @Getter
     private String ip;
+    @Getter
     private String alertMsg;
     @Getter
     private String countryVanillaKickReason;
@@ -98,6 +99,7 @@ public class VPNConfig {
     @Getter
     private boolean databaseEnabled;
     private boolean useCredentials;
+    @Getter
     private boolean commandsEnabled;
     @Getter
     private boolean kickPlayers;
@@ -114,27 +116,11 @@ public class VPNConfig {
     }
 
     /**
-     * Message to send staff on proxy detection.
-     * @return String
-     */
-    public String alertMessage() {
-        return alertMsg;
-    }
-
-    /**
      * If true, staff will be alerted on proxy detection.
      * @return boolean
      */
-    public boolean alertToStaff() {
+    public boolean isAlertToSTaff() {
         return alertToStaff;
-    }
-
-    /**
-     * If true, will run {@link VPNConfig#commands()} on detect. If not, it will use vanilla kicking methods.
-     * @return boolean
-     */
-    public boolean runCommands() {
-        return commandsEnabled;
     }
 
     /**

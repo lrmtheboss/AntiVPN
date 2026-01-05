@@ -19,22 +19,21 @@ package dev.brighten.antivpn.database.local;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import dev.brighten.antivpn.AntiVPN;
-import dev.brighten.antivpn.api.VPNExecutor;
 import dev.brighten.antivpn.database.VPNDatabase;
 import dev.brighten.antivpn.database.sql.utils.MySQL;
 import dev.brighten.antivpn.database.sql.utils.Query;
-import dev.brighten.antivpn.database.version.H2Version;
+import dev.brighten.antivpn.database.version.Version;
+import dev.brighten.antivpn.utils.CIDRUtils;
 import dev.brighten.antivpn.web.objects.VPNResponse;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
+import java.math.BigInteger;
+import java.net.UnknownHostException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -103,18 +102,20 @@ public class H2VPN implements VPNDatabase {
         if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
             return;
 
-        cachedResponses.put(toCache.getIp(), toCache);
+        if(AntiVPN.getInstance().getVpnConfig().cachedResults()) {
+            cachedResponses.put(toCache.getIp(), toCache);
 
-        try {
-            Query.prepare("insert into `responses` (`ip`,`asn`,`countryName`,`countryCode`,`city`,`timeZone`,"
-                            + "`method`,`isp`,`proxy`,`cached`,`inserted`,`latitude`,`longitude`) values (?,?,?,?,?,?,?,?,?,?,?,?,?)")
-                    .append(toCache.getIp()).append(toCache.getAsn()).append(toCache.getCountryName())
-                    .append(toCache.getCountryCode()).append(toCache.getCity()).append(toCache.getTimeZone())
-                    .append(toCache.getMethod()).append(toCache.getIsp()).append(toCache.isProxy())
-                    .append(toCache.isCached()).append(new Timestamp(System.currentTimeMillis()))
-                    .append(toCache.getLatitude()).append(toCache.getLongitude()).execute();
-        } catch(SQLException e) {
-
+            try {
+                Query.prepare("insert into `responses` (`ip`,`asn`,`countryName`,`countryCode`,`city`,`timeZone`,"
+                                + "`method`,`isp`,`proxy`,`cached`,`inserted`,`latitude`,`longitude`) values (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+                        .append(toCache.getIp()).append(toCache.getAsn()).append(toCache.getCountryName())
+                        .append(toCache.getCountryCode()).append(toCache.getCity()).append(toCache.getTimeZone())
+                        .append(toCache.getMethod()).append(toCache.getIsp()).append(toCache.isProxy())
+                        .append(toCache.isCached()).append(new Timestamp(System.currentTimeMillis()))
+                        .append(toCache.getLatitude()).append(toCache.getLongitude()).execute();
+            } catch(SQLException e) {
+                AntiVPN.getInstance().getExecutor().logException("Could not cache response for IP: " + toCache.getIp(), e);
+            }
         }
     }
 
@@ -146,58 +147,85 @@ public class H2VPN implements VPNDatabase {
     @SneakyThrows
     @Override
     public boolean isWhitelisted(String ip) {
-        if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
-            return false;
-        ResultSet set = Query.prepare("select `ip` from `whitelisted-ips` where `ip` = ? limit 1")
-                .append(ip).executeQuery();
-
-
-        return set != null && set.next() && set.getString("ip") != null;
+        return isWhitelisted(new CIDRUtils(ip + "/32"));
     }
 
     @Override
-    public void setWhitelisted(UUID uuid, boolean whitelisted) {
+    public boolean isWhitelisted(CIDRUtils cidr) {
+        if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
+            return false;
+
+        BigInteger start = cidr.getStartIpInt();
+        BigInteger end = cidr.getEndIpInt();
+
+        try(var result = Query.prepare("SELECT * FROM `whitelisted-ranges` WHERE ip_start <= ? AND ip_end >= ?")
+                .append(start).append(end).executeQuery()) {
+
+            return result.next();
+        } catch (SQLException e) {
+            AntiVPN.getInstance().getExecutor().logException("Could not check whitelist for cidr '" + cidr + "' due to SQL error.", e);
+        }
+        return false;
+    }
+
+    @Override
+    public void addWhitelist(UUID uuid) {
         if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
             return;
 
         try {
-            if (whitelisted) {
-                if (!isWhitelisted(uuid)) {
-                    Query.prepare("insert into `whitelisted` (`uuid`) values (?)").append(uuid.toString()).execute();
-                }
-                AntiVPN.getInstance().getExecutor().getWhitelisted().add(uuid);
-            } else {
-                Query.prepare("delete from `whitelisted` where `uuid` = ?").append(uuid.toString()).execute();
-                AntiVPN.getInstance().getExecutor().getWhitelisted().remove(uuid);
-            }
+            Query.prepare("insert into `whitelisted` (`uuid`) values (?)").append(uuid.toString()).execute();
+            AntiVPN.getInstance().getExecutor().getWhitelisted().add(uuid);
         } catch (SQLException e) {
-            AntiVPN.getInstance().getExecutor().logException("Could not set whitelist for uuid '" + uuid + "' due to SQL error.", e);
+            AntiVPN.getInstance().getExecutor().logException("Could not add uuid '" + uuid + "' to whitelist due to SQL error.", e);
         }
     }
 
     @Override
-    public void setWhitelisted(String ip, boolean whitelisted) {
+    public void removeWhitelist(UUID uuid) {
+        if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
+            return;
+        try {
+            Query.prepare("delete from `whitelisted` where `uuid` = ?").append(uuid.toString()).execute();
+            AntiVPN.getInstance().getExecutor().getWhitelisted().remove(uuid);
+        } catch (SQLException e) {
+            AntiVPN.getInstance().getExecutor().logException("Could not remove uuid '" + uuid + "' from whitelist due to SQL error.", e);
+        }
+    }
+
+    @Override
+    public void addWhitelist(CIDRUtils cidr) {
         if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
             return;
 
         try {
-            if(whitelisted) {
-                if(!isWhitelisted(ip)) {
-                    Query.prepare("insert into `whitelisted-ips` (`ip`) values (?)").append(ip).execute();
-                }
-                AntiVPN.getInstance().getExecutor().getWhitelistedIps().add(ip);
-            } else {
-                Query.prepare("delete from `whitelisted-ips` where `ip` = ?").append(ip).execute();
-                AntiVPN.getInstance().getExecutor().getWhitelistedIps().remove(ip);
-            }
+            Query.prepare("insert into `whitelisted-ranges` (`cidr_string`, `ip_start`, `ip_end`) values (?, ?, ?)")
+                    .append(cidr.toString()).append(cidr.getStartIpInt()).append(cidr.getEndIpInt()).execute();
+
         } catch (SQLException e) {
-            AntiVPN.getInstance().getExecutor().logException("Could not set whitelist for ip '" + ip + "' due to SQL error.", e);
+            AntiVPN.getInstance().getExecutor().logException("Could not add cidr '" + cidr + "' to whitelist due to SQL error.", e);
+        }
+    }
+
+    @Override
+    public void removeWhitelist(CIDRUtils cidr) {
+        if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
+            return;
+
+        try {
+            Query.prepare("delete from `whitelisted-ranges` where `cidr_string` = ?").append(cidr.toString()).execute();
+
+        } catch (SQLException e) {
+            AntiVPN.getInstance().getExecutor().logException("Could not remove cidr '" + cidr + "' from whitelist due to SQL error.", e);
         }
     }
 
     @Override
     public List<UUID> getAllWhitelisted() {
         List<UUID> uuids = new ArrayList<>();
+
+        if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
+            return uuids;
 
         try {
             if(!MySQL.isClosed()) Query.prepare("select uuid from `whitelisted`")
@@ -210,38 +238,25 @@ public class H2VPN implements VPNDatabase {
     }
 
     @Override
-    public List<String> getAllWhitelistedIps() {
-        List<String> ips = new ArrayList<>();
+    public List<CIDRUtils> getAllWhitelistedIps() {
+        List<CIDRUtils> ips = new ArrayList<>();
 
+        if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
+            return ips;
         try {
-            if(!MySQL.isClosed()) Query.prepare("select `ip` from `whitelisted-ips`")
-                    .execute(set -> ips.add(set.getString("ip")));
+            if(!MySQL.isClosed()) Query.prepare("select `cidr_string`, `ip_start`, `ip_end` from `whitelisted-ranges`")
+                    .execute(set -> {
+                        try {
+                            ips.add(new CIDRUtils(set.getString("cidr_string")));
+                        } catch (UnknownHostException e) {
+                            AntiVPN.getInstance().getExecutor().logException("Could not format ip " + set.getString("cidr_string") + " into a CIDR!", e);
+                        }
+                    });
         } catch (SQLException e) {
             AntiVPN.getInstance().getExecutor().logException("Could not get all whitelisted ips due to SQL error.", e);
         }
 
         return ips;
-    }
-
-    @Override
-    public void getStoredResponseAsync(String ip, Consumer<Optional<VPNResponse>> result) {
-        if(MySQL.isClosed()) return;
-
-        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(getStoredResponse(ip)));
-    }
-
-    @Override
-    public void isWhitelistedAsync(UUID uuid, Consumer<Boolean> result) {
-        if(MySQL.isClosed()) return;
-
-        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(isWhitelisted(uuid)));
-    }
-
-    @Override
-    public void isWhitelistedAsync(String ip, Consumer<Boolean> result) {
-        if(MySQL.isClosed()) return;
-
-        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(isWhitelisted(ip)));
     }
 
     @Override
@@ -306,7 +321,7 @@ public class H2VPN implements VPNDatabase {
         AntiVPN.getInstance().getExecutor().log("Initializing H2...");
         MySQL.initH2();
         try {
-            for (H2Version version : H2Version.versions) {
+            for (Version<H2VPN> version : Version.h2Versions) {
                 if(version.needsUpdate(this)) {
                     version.update(this);
                 }
@@ -326,5 +341,20 @@ public class H2VPN implements VPNDatabase {
             return;
 
         MySQL.shutdown();
+    }
+
+    public void backupDatabase() {
+        File dataFolder = new File(AntiVPN.getInstance().getPluginFolder(), "databases");
+
+        if(!dataFolder.exists()) {
+            return;
+        }
+
+        List<File> files = new ArrayList<>(List.of(Optional.ofNullable(dataFolder.listFiles()).orElse(new File[0])));
+        files.sort(Comparator.comparingLong(File::lastModified));
+
+        for (File file : files) {
+            MySQL.backupOldDB(file, dataFolder);
+        }
     }
 }

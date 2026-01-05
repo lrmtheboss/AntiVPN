@@ -77,12 +77,12 @@ public class VelocityListener extends VPNExecutor {
     private void handleDeniedTasks(LoginEvent event, CheckResult checkResult, boolean deniedOnLogin) {
         VPNResponse result = checkResult.response();
         //Ensuring the user wishes to alert to staff
-        if (AntiVPN.getInstance().getVpnConfig().alertToStaff())
+        if (AntiVPN.getInstance().getVpnConfig().isAlertToSTaff())
             AntiVPN.getInstance().getPlayerExecutor().getOnlinePlayers().stream()
                     .filter(APIPlayer::isAlertsEnabled)
                     .forEach(pl ->
                             pl.sendMessage(dev.brighten.antivpn.AntiVPN.getInstance().getVpnConfig()
-                                    .alertMessage()
+                                    .getAlertMsg()
                                     .replace("%player%",
                                             event.getPlayer().getUsername())
                                     .replace("%reason%",
@@ -122,7 +122,7 @@ public class VelocityListener extends VPNExecutor {
             }
         }
 
-        if(!AntiVPN.getInstance().getVpnConfig().runCommands()) return;
+        if(!AntiVPN.getInstance().getVpnConfig().isCommandsEnabled()) return;
 
         switch (checkResult.resultType()) {
             case DENIED_PROXY -> {

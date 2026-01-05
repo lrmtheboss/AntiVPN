@@ -1,6 +1,7 @@
 package dev.brighten.antivpn.api;
 
 import dev.brighten.antivpn.AntiVPN;
+import dev.brighten.antivpn.utils.CIDRUtils;
 import dev.brighten.antivpn.utils.StringUtil;
 import dev.brighten.antivpn.utils.Tuple;
 import dev.brighten.antivpn.utils.json.JSONException;
@@ -9,6 +10,7 @@ import dev.brighten.antivpn.web.objects.VPNResponse;
 import lombok.Getter;
 
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -18,12 +20,12 @@ import java.util.logging.Level;
 
 public abstract class VPNExecutor {
     @Getter
-    private ScheduledExecutorService threadExecutor = Executors.newScheduledThreadPool(2);
+    private final ScheduledExecutorService threadExecutor = Executors.newScheduledThreadPool(2);
 
     @Getter
     private final Set<UUID> whitelisted = Collections.synchronizedSet(new HashSet<>());
     @Getter
-    private final Set<String> whitelistedIps = Collections.synchronizedSet(new HashSet<>());
+    private final Set<CIDRUtils> whitelistedIps = Collections.synchronizedSet(new HashSet<>());
 
     @Getter
     private final List<Tuple<CheckResult, UUID>> toKick = Collections.synchronizedList(new LinkedList<>());
@@ -67,14 +69,14 @@ public abstract class VPNExecutor {
     }
 
     public void handleKickingOfPlayer(CheckResult result, APIPlayer player) {
-        if (AntiVPN.getInstance().getVpnConfig().alertToStaff()) AntiVPN.getInstance().getPlayerExecutor()
+        if (AntiVPN.getInstance().getVpnConfig().isAlertToSTaff()) AntiVPN.getInstance().getPlayerExecutor()
                 .getOnlinePlayers()
                 .stream()
                 .filter(APIPlayer::isAlertsEnabled)
                 .forEach(pl ->
                         pl.sendMessage(StringUtil.translateAlternateColorCodes('&',
                                 StringUtil.varReplace(dev.brighten.antivpn.AntiVPN.getInstance().getVpnConfig()
-                                        .alertMessage(), player, result.response()))));
+                                        .getAlertMsg(), player, result.response()))));
 
         if(AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
             switch (result.resultType()) {
@@ -85,7 +87,7 @@ public abstract class VPNExecutor {
             }
         }
 
-        if(!AntiVPN.getInstance().getVpnConfig().runCommands()) return;
+        if(!AntiVPN.getInstance().getVpnConfig().isCommandsEnabled()) return;
 
         switch (result.resultType()) {
             case DENIED_PROXY -> {
@@ -114,7 +116,11 @@ public abstract class VPNExecutor {
         if(AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled()) {
             return AntiVPN.getInstance().getDatabase().isWhitelisted(ip);
         }
-        return whitelistedIps.contains(ip);
+        try {
+            return whitelistedIps.contains(new CIDRUtils(ip + "/32"));
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public CompletableFuture<VPNResponse> checkIp(String ip) {

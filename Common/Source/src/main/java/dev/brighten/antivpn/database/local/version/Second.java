@@ -17,11 +17,12 @@
 package dev.brighten.antivpn.database.local.version;
 
 import dev.brighten.antivpn.AntiVPN;
+import dev.brighten.antivpn.database.DatabaseException;
+import dev.brighten.antivpn.database.VPNDatabase;
 import dev.brighten.antivpn.database.local.H2VPN;
 import dev.brighten.antivpn.database.sql.utils.Query;
-import dev.brighten.antivpn.database.version.H2Version;
+import dev.brighten.antivpn.database.version.Version;
 import dev.brighten.antivpn.utils.CIDRUtils;
-import dev.brighten.antivpn.utils.IpUtils;
 
 import java.net.UnknownHostException;
 import java.sql.ResultSet;
@@ -29,16 +30,20 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Second implements H2Version {
+public class Second implements Version<VPNDatabase> {
     @Override
-    public void update(H2VPN database) throws SQLException {
-        backupDatabase();
+    public void update(VPNDatabase database) throws DatabaseException {
+        if(database instanceof H2VPN h2VPN) {
+            h2VPN.backupDatabase();
+        }
         List<String> whitelistedIps = new ArrayList<>();
 
         try (var set = Query.prepare("SELECT * FROM `whitelisted-ips`").executeQuery()) {
             while (set.next()) {
                 whitelistedIps.add(set.getString("ip"));
             }
+        } catch (SQLException e) {
+            throw new DatabaseException("Could not get whitelisted ips from database!", e);
         }
 
         try {
@@ -60,9 +65,9 @@ public class Second implements H2Version {
             var insertStatement = Query.prepare("INSERT INTO `whitelisted-ranges` (`cidr_string`, `ip_start`, `ip_end`) VALUES (?, ?, ?)");
             for (CIDRUtils cidr : cidrs) {
                 insertStatement = insertStatement
-                        .append(cidr.toString()).
-                        append(IpUtils.getIpDecimal(cidr.getStartAddress().getHostAddress()).orElseThrow())
-                        .append(IpUtils.getIpDecimal(cidr.getEndAddress().getHostAddress()).orElseThrow())
+                        .append(cidr.toString())
+                        .append(cidr.getStartIpInt())
+                        .append(cidr.getEndIpInt())
                         .addBatch();
             }
 
@@ -79,8 +84,12 @@ public class Second implements H2Version {
             Query.prepare("INSERT INTO `database_version` (`version`) VALUES (?)").append(versionNumber()).execute();
         } catch (Throwable e) {
             AntiVPN.getInstance().getExecutor().log("Failed to update database to version 1: " + e.getMessage());
-            rollback(whitelistedIps);
-            throw e;
+            try {
+                rollback(whitelistedIps);
+            } catch (SQLException ex) {
+                throw new DatabaseException("Failed to rollback database!", e);
+            }
+            throw new DatabaseException("Failed to update to version one, rolling back database!", e);
         }
 
     }
@@ -112,7 +121,7 @@ public class Second implements H2Version {
     }
 
     @Override
-    public boolean needsUpdate(H2VPN database) {
+    public boolean needsUpdate(VPNDatabase database) {
         try (ResultSet set = Query.prepare("select * from `database_version` where version = 1").executeQuery()) {
             return set.getFetchSize() == 0;
         } catch (SQLException e) {

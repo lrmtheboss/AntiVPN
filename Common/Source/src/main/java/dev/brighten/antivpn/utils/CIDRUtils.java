@@ -45,6 +45,7 @@ public class CIDRUtils {
     private final InetAddress inetAddress;
 
     private InetAddress startAddress;
+    private BigInteger startIpInt, endIpInt;
     private InetAddress endAddress;
     private final int prefixLength;
 
@@ -92,7 +93,9 @@ public class CIDRUtils {
         BigInteger ipVal = new BigInteger(1, buffer.array());
 
         BigInteger startIp = ipVal.and(mask);
+        this.startIpInt = startIp;
         BigInteger endIp = startIp.add(mask.not());
+        this.endIpInt = endIp;
 
         byte[] startIpArr = toBytes(startIp.toByteArray(), targetSize);
         byte[] endIpArr = toBytes(endIp.toByteArray(), targetSize);
@@ -123,15 +126,6 @@ public class CIDRUtils {
         return ret;
     }
 
-    public String getNetworkAddress() {
-
-        return this.startAddress.getHostAddress();
-    }
-
-    public String getBroadcastAddress() {
-        return this.endAddress.getHostAddress();
-    }
-
     public boolean isInRange(String ipAddress) throws UnknownHostException {
         InetAddress address = InetAddress.getByName(ipAddress);
         BigInteger start = new BigInteger(1, this.startAddress.getAddress());
@@ -141,6 +135,6 @@ public class CIDRUtils {
         int st = start.compareTo(target);
         int te = target.compareTo(end);
 
-        return (st == -1 || st == 0) && (te == -1 || te == 0);
+        return (st < 0 || st == 0) && (te < 0 || te == 0);
     }
 }

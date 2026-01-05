@@ -76,24 +76,24 @@ public class AllowlistCommand extends Command {
             if(!databaseEnabled) {
                 return switch (args[0].toLowerCase()) {
                     case "add", "insert" -> {
-                        AntiVPN.getInstance().getExecutor().getWhitelistedIps().add(cidrUtils.getCidr());
+                        AntiVPN.getInstance().getExecutor().getWhitelistedIps().add(cidrUtils);
                         yield String.format("&aAdded &6%s &ato exemption allowlist.", cidrUtils.getCidr());
                     }
                     case "remove", "delete" -> {
-                        AntiVPN.getInstance().getExecutor().getWhitelistedIps().remove(cidrUtils.getCidr());
+                        AntiVPN.getInstance().getExecutor().getWhitelistedIps().remove(cidrUtils);
                         yield String.format("&cRemoved &%s &cfrom the exemption allowlist.", cidrUtils.getCidr());
                     }
                     default -> "&c\"" + args[0] + "\" is not a valid argument";
                 };
             } else return switch (args[0].toLowerCase()) {
                 case "add", "insert" -> {
-                    AntiVPN.getInstance().getExecutor().getWhitelistedIps().add(cidrUtils.getCidr());
-                    AntiVPN.getInstance().getDatabase().addWhitelist(cidrUtils.getCidr());
+                    AntiVPN.getInstance().getExecutor().getWhitelistedIps().add(cidrUtils);
+                    AntiVPN.getInstance().getDatabase().addWhitelist(cidrUtils);
                     yield String.format("&aAdded &6%s &ato exemption allowlist.", cidrUtils.getCidr());
                 }
                 case "remove", "delete" -> {
-                    AntiVPN.getInstance().getExecutor().getWhitelistedIps().remove(cidrUtils.getCidr());
-                    AntiVPN.getInstance().getDatabase().removeWhitelist(cidrUtils.getCidr());
+                    AntiVPN.getInstance().getExecutor().getWhitelistedIps().remove(cidrUtils);
+                    AntiVPN.getInstance().getDatabase().removeWhitelist(cidrUtils);
                     yield String.format("&cRemoved &6%s &cfrom the exemption allowlist.", cidrUtils.getCidr());
                 }
                 default -> "&c\"" + args[0] + "\" is not a valid argument";
@@ -101,30 +101,42 @@ public class AllowlistCommand extends Command {
         }
         if(MiscUtils.isIpv4(args[1])) {
             if(!databaseEnabled) {
-                return switch(args[0].toLowerCase()) {
-                    case "add", "insert" -> {
-                        AntiVPN.getInstance().getExecutor().getWhitelistedIps().add(args[1] + "/32");
-                        AntiVPN.getInstance().getDatabase().addWhitelist(args[1] + "/32");
-                        yield String.format("&aAdded &6%s &ato the exemption allowlist.", args[1] + "/32");
-                    }
-                    case "remove", "delete" -> {
-                        AntiVPN.getInstance().getExecutor().getWhitelistedIps().remove(args[1] + "/32");
-                        AntiVPN.getInstance().getDatabase().removeWhitelist(args[1] + "/32");
-                        yield String.format("&cRemoved &6%s &cfrom the exemption allowlist.", args[1] + "/32");
-                    }
-                    default -> "&c\"" + args[0] + "\" is not a valid argument";
-                };
-            } else return switch (args[0].toLowerCase()) {
-                    case "add", "insert" -> {
-                        AntiVPN.getInstance().getDatabase().addWhitelist(args[1] + "/32");
-                        yield String.format("&aAdded &6%s &a to the exemption allowlist.", args[1] + "/32");
-                    }
-                    case "remove", "delete" -> {
-                        AntiVPN.getInstance().getDatabase().removeWhitelist(args[1] + "/32");
-                        yield String.format("&cRemoved &6%s &c from the exemption allowlist.", args[1] + "/32");
-                    }
-                    default -> "&c\"" + args[0] + "\" is not a valid argument";
-            };
+                try {
+                    return switch(args[0].toLowerCase()) {
+                        case "add", "insert" -> {
+                            AntiVPN.getInstance().getExecutor().getWhitelistedIps().add(new CIDRUtils(args[1] + "/32"));
+                            AntiVPN.getInstance().getDatabase().addWhitelist(new CIDRUtils(args[1] + "/32"));
+                            yield String.format("&aAdded &6%s &ato the exemption allowlist.", args[1] + "/32");
+                        }
+                        case "remove", "delete" -> {
+                            AntiVPN.getInstance().getExecutor().getWhitelistedIps().remove(new CIDRUtils(args[1] + "/32"));
+                            AntiVPN.getInstance().getDatabase().removeWhitelist(new CIDRUtils(args[1] + "/32"));
+                            yield String.format("&cRemoved &6%s &cfrom the exemption allowlist.", args[1] + "/32");
+                        }
+                        default -> "&c\"" + args[0] + "\" is not a valid argument";
+                    };
+                } catch (UnknownHostException e) {
+                    AntiVPN.getInstance().getExecutor().logException("Invalid IP format for allowlist command", e);
+                    return "&cInvalid IP format for allowlist command";
+                }
+            } else {
+                try {
+                    return switch (args[0].toLowerCase()) {
+                        case "add", "insert" -> {
+                            AntiVPN.getInstance().getDatabase().addWhitelist(new CIDRUtils(args[1] + "/32"));
+                            yield String.format("&aAdded &6%s &a to the exemption allowlist.", args[1] + "/32");
+                        }
+                        case "remove", "delete" -> {
+                            AntiVPN.getInstance().getDatabase().removeWhitelist(new CIDRUtils(args[1] + "/32"));
+                            yield String.format("&cRemoved &6%s &c from the exemption allowlist.", args[1] + "/32");
+                        }
+                        default -> "&c\"" + args[0] + "\" is not a valid argument";
+                    };
+                } catch (UnknownHostException e) {
+                    AntiVPN.getInstance().getExecutor().logException("Invalid IP format for allowlist command", e);
+                    return "&cInvalid IP format for allowlist command";
+                }
+            }
         } else {
             UUID uuid;
             try {

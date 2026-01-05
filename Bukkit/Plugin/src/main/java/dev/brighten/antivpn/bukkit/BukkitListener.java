@@ -92,7 +92,7 @@ public class BukkitListener extends VPNExecutor implements Listener {
                             instantResult.response()
                     )));
             case DENIED_PROXY -> {
-                if(AntiVPN.getInstance().getVpnConfig().isAlertToStaff()) {
+                if(AntiVPN.getInstance().getVpnConfig().isAlertToSTaff()) {
                     AntiVPN.getInstance().getPlayerExecutor().getOnlinePlayers().stream()
                             .filter(APIPlayer::isAlertsEnabled)
                             .forEach(pl ->
@@ -116,14 +116,15 @@ public class BukkitListener extends VPNExecutor implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(final PlayerJoinEvent event) {
         AntiVPN.getInstance().getPlayerExecutor().getPlayer(event.getPlayer().getUniqueId())
-                .ifPresent(player -> AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> {
-                    if(AntiVPN.getInstance().getDatabase().getAlertsState(player.getUuid())) {
-                        player.setAlertsEnabled(true);
-                        player.sendMessage(AntiVPN.getInstance().getMessageHandler()
-                                .getString("command-alerts-toggled")
-                                .getFormattedMessage(new VpnString.Var<>("state", true)));
-                    }
-                }));
+                .ifPresent(player -> AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() ->
+                        AntiVPN.getInstance().getDatabase().alertsState(player.getUuid(), state -> {
+                            if(state) {
+                                player.setAlertsEnabled(true);
+                                player.sendMessage(AntiVPN.getInstance().getMessageHandler()
+                                        .getString("command-alerts-toggled")
+                                        .getFormattedMessage(new VpnString.Var<>("state", true)));
+                            }
+                })));
     }
 
     @EventHandler

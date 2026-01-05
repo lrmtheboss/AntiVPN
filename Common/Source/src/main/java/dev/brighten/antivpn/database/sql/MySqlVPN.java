@@ -29,7 +29,7 @@ public class MySqlVPN implements VPNDatabase {
 
 
     public MySqlVPN() {
-        VPNExecutor.threadExecutor.scheduleAtFixedRate(() -> {
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().scheduleAtFixedRate(() -> {
             if(!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed()) return;
 
             //Refreshing whitelisted players
@@ -63,7 +63,7 @@ public class MySqlVPN implements VPNDatabase {
                             rs.getTimestamp("inserted").getTime(), -1);
 
                     if(System.currentTimeMillis() - responseFromDoc.getLastAccess() > TimeUnit.HOURS.toMillis(1)) {
-                        VPNExecutor.threadExecutor.execute(() -> deleteResponse(ip));
+                        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> deleteResponse(ip));
                         return null;
                     }
 
@@ -190,28 +190,28 @@ public class MySqlVPN implements VPNDatabase {
     public void getStoredResponseAsync(String ip, Consumer<Optional<VPNResponse>> result) {
         if(MySQL.isClosed()) return;
 
-        VPNExecutor.threadExecutor.execute(() -> result.accept(getStoredResponse(ip)));
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(getStoredResponse(ip)));
     }
 
     @Override
     public void isWhitelistedAsync(UUID uuid, Consumer<Boolean> result) {
         if(MySQL.isClosed()) return;
 
-        VPNExecutor.threadExecutor.execute(() -> result.accept(isWhitelisted(uuid)));
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(isWhitelisted(uuid)));
     }
 
     @Override
     public void isWhitelistedAsync(String ip, Consumer<Boolean> result) {
         if(MySQL.isClosed()) return;
 
-        VPNExecutor.threadExecutor.execute(() -> result.accept(isWhitelisted(ip)));
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(isWhitelisted(ip)));
     }
 
     @Override
     public void alertsState(UUID uuid, Consumer<Boolean> result) {
         if(MySQL.isClosed()) return;
 
-        VPNExecutor.threadExecutor.execute(() -> {
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> {
 
             try(ResultSet set = Query.prepare("select * from `alerts` where `uuid` = ? limit 1")
                     .append(uuid.toString()).executeQuery()) {
@@ -237,7 +237,7 @@ public class MySqlVPN implements VPNDatabase {
                 } //No need to insert again of already enabled
             });
             //Removing any uuid from the alerts table will disable alerts globally.
-        } else VPNExecutor.threadExecutor.execute(() ->
+        } else AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() ->
                 Query.prepare("delete from `alerts` where `uuid` = ?")
                         .append(uuid.toString())
                         .execute());
@@ -247,7 +247,7 @@ public class MySqlVPN implements VPNDatabase {
     public void clearResponses() {
         if(MySQL.isClosed()) return;
 
-        VPNExecutor.threadExecutor.execute(() -> Query.prepare("delete from `responses`").execute());
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> Query.prepare("delete from `responses`").execute());
     }
 
     @Override

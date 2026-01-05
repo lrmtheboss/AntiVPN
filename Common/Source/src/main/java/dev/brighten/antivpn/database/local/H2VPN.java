@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Dawson Hessler
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package dev.brighten.antivpn.database.local;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -7,6 +23,7 @@ import dev.brighten.antivpn.api.VPNExecutor;
 import dev.brighten.antivpn.database.VPNDatabase;
 import dev.brighten.antivpn.database.sql.utils.MySQL;
 import dev.brighten.antivpn.database.sql.utils.Query;
+import dev.brighten.antivpn.database.version.H2Version;
 import dev.brighten.antivpn.web.objects.VPNResponse;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +47,7 @@ public class H2VPN implements VPNDatabase {
 
 
     public H2VPN() {
-        VPNExecutor.threadExecutor.scheduleAtFixedRate(() -> {
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().scheduleAtFixedRate(() -> {
             if(!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed()) return;
 
             //Refreshing whitelisted players
@@ -143,14 +160,18 @@ public class H2VPN implements VPNDatabase {
         if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
             return;
 
-        if (whitelisted) {
-            if (!isWhitelisted(uuid)) {
-                Query.prepare("insert into `whitelisted` (`uuid`) values (?)").append(uuid.toString()).execute();
+        try {
+            if (whitelisted) {
+                if (!isWhitelisted(uuid)) {
+                    Query.prepare("insert into `whitelisted` (`uuid`) values (?)").append(uuid.toString()).execute();
+                }
+                AntiVPN.getInstance().getExecutor().getWhitelisted().add(uuid);
+            } else {
+                Query.prepare("delete from `whitelisted` where `uuid` = ?").append(uuid.toString()).execute();
+                AntiVPN.getInstance().getExecutor().getWhitelisted().remove(uuid);
             }
-            AntiVPN.getInstance().getExecutor().getWhitelisted().add(uuid);
-        } else {
-            Query.prepare("delete from `whitelisted` where `uuid` = ?").append(uuid.toString()).execute();
-            AntiVPN.getInstance().getExecutor().getWhitelisted().remove(uuid);
+        } catch (SQLException e) {
+            AntiVPN.getInstance().getExecutor().logException("Could not set whitelist for uuid '" + uuid + "' due to SQL error.", e);
         }
     }
 
@@ -159,14 +180,18 @@ public class H2VPN implements VPNDatabase {
         if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
             return;
 
-        if(whitelisted) {
-            if(!isWhitelisted(ip)) {
-                Query.prepare("insert into `whitelisted-ips` (`ip`) values (?)").append(ip).execute();
+        try {
+            if(whitelisted) {
+                if(!isWhitelisted(ip)) {
+                    Query.prepare("insert into `whitelisted-ips` (`ip`) values (?)").append(ip).execute();
+                }
+                AntiVPN.getInstance().getExecutor().getWhitelistedIps().add(ip);
+            } else {
+                Query.prepare("delete from `whitelisted-ips` where `ip` = ?").append(ip).execute();
+                AntiVPN.getInstance().getExecutor().getWhitelistedIps().remove(ip);
             }
-            AntiVPN.getInstance().getExecutor().getWhitelistedIps().add(ip);
-        } else {
-            Query.prepare("delete from `whitelisted-ips` where `ip` = ?").append(ip).execute();
-            AntiVPN.getInstance().getExecutor().getWhitelistedIps().remove(ip);
+        } catch (SQLException e) {
+            AntiVPN.getInstance().getExecutor().logException("Could not set whitelist for ip '" + ip + "' due to SQL error.", e);
         }
     }
 
@@ -174,8 +199,12 @@ public class H2VPN implements VPNDatabase {
     public List<UUID> getAllWhitelisted() {
         List<UUID> uuids = new ArrayList<>();
 
-        if(!MySQL.isClosed()) Query.prepare("select uuid from `whitelisted`")
-                .execute(set -> uuids.add(UUID.fromString(set.getString("uuid"))));
+        try {
+            if(!MySQL.isClosed()) Query.prepare("select uuid from `whitelisted`")
+                    .execute(set -> uuids.add(UUID.fromString(set.getString("uuid"))));
+        } catch (SQLException e) {
+            AntiVPN.getInstance().getExecutor().logException("Could not get all whitelisted players due to SQL error.", e);
+        }
 
         return uuids;
     }
@@ -184,8 +213,12 @@ public class H2VPN implements VPNDatabase {
     public List<String> getAllWhitelistedIps() {
         List<String> ips = new ArrayList<>();
 
-        if(!MySQL.isClosed()) Query.prepare("select `ip` from `whitelisted-ips`")
+        try {
+            if(!MySQL.isClosed()) Query.prepare("select `ip` from `whitelisted-ips`")
                     .execute(set -> ips.add(set.getString("ip")));
+        } catch (SQLException e) {
+            AntiVPN.getInstance().getExecutor().logException("Could not get all whitelisted ips due to SQL error.", e);
+        }
 
         return ips;
     }
@@ -194,28 +227,28 @@ public class H2VPN implements VPNDatabase {
     public void getStoredResponseAsync(String ip, Consumer<Optional<VPNResponse>> result) {
         if(MySQL.isClosed()) return;
 
-        VPNExecutor.threadExecutor.execute(() -> result.accept(getStoredResponse(ip)));
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(getStoredResponse(ip)));
     }
 
     @Override
     public void isWhitelistedAsync(UUID uuid, Consumer<Boolean> result) {
         if(MySQL.isClosed()) return;
 
-        VPNExecutor.threadExecutor.execute(() -> result.accept(isWhitelisted(uuid)));
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(isWhitelisted(uuid)));
     }
 
     @Override
     public void isWhitelistedAsync(String ip, Consumer<Boolean> result) {
         if(MySQL.isClosed()) return;
 
-        VPNExecutor.threadExecutor.execute(() -> result.accept(isWhitelisted(ip)));
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(isWhitelisted(ip)));
     }
 
     @Override
     public void alertsState(UUID uuid, Consumer<Boolean> result) {
         if(MySQL.isClosed()) return;
 
-        VPNExecutor.threadExecutor.execute(() -> {
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> {
 
             try(ResultSet set = Query.prepare("select * from `alerts` where `uuid` = ? limit 1")
                     .append(uuid.toString()).executeQuery()) {
@@ -235,22 +268,35 @@ public class H2VPN implements VPNDatabase {
             //We want to make sure there isn't already a uuid inserted to prevent double insertions
             alertsState(uuid, alreadyEnabled -> { //No need to make another thread execute, already async
                 if(!alreadyEnabled) {
-                    Query.prepare("insert into `alerts` (`uuid`) values (?)").append(uuid.toString())
-                            .execute();
+                    try {
+                        Query.prepare("insert into `alerts` (`uuid`) values (?)").append(uuid.toString())
+                                .execute();
+                    } catch (SQLException e) {
+                        AntiVPN.getInstance().getExecutor().logException("There was a problem updating alerts state for " + uuid, e);
+                    }
                 } //No need to insert again of already enabled
             });
             //Removing any uuid from the alerts table will disable alerts globally.
-        } else VPNExecutor.threadExecutor.execute(() ->
+        } else {
+            try {
                 Query.prepare("delete from `alerts` where `uuid` = ?")
                         .append(uuid.toString())
-                        .execute());
+                        .execute();
+            } catch (SQLException e) {
+                AntiVPN.getInstance().getExecutor().logException("There was a problem updating alerts state for " + uuid, e);
+            }
+        }
     }
 
     @Override
     public void clearResponses() {
         if(MySQL.isClosed()) return;
 
-        VPNExecutor.threadExecutor.execute(() -> Query.prepare("delete from `responses`").execute());
+        try {
+            Query.prepare("delete from `responses`").execute();
+        } catch (SQLException e) {
+            AntiVPN.getInstance().getExecutor().logException("There was a problem clearing responses.", e);
+        }
     }
 
     @Override
@@ -259,6 +305,15 @@ public class H2VPN implements VPNDatabase {
             return;
         AntiVPN.getInstance().getExecutor().log("Initializing H2...");
         MySQL.initH2();
+        try {
+            for (H2Version version : H2Version.versions) {
+                if(version.needsUpdate(this)) {
+                    version.update(this);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Could not complete version setup due to SQL error", e);
+        }
 
         AntiVPN.getInstance().getExecutor().log("Creating tables...");
 

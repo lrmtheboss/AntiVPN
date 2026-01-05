@@ -29,16 +29,6 @@ public class BungeeListener extends VPNExecutor implements Listener {
     }
 
     @Override
-    public void shutdown() {
-        if(cacheResetTask != null) {
-            cacheResetTask.cancel();
-            cacheResetTask = null;
-        }
-        BungeePlugin.pluginInstance.getProxy().getPluginManager().unregisterListener(this);
-        super.shutdown();
-    }
-
-    @Override
     public void log(Level level, String log, Object... objects) {
         BungeePlugin.pluginInstance.getProxy().getLogger().log(Level.INFO, String.format(log, objects));
     }

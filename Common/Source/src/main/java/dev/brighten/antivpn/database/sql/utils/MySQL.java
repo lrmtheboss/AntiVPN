@@ -81,7 +81,7 @@ public class MySQL {
         }
     }
 
-    private static void backupOldDB(File dbFile, File dataFolder) {
+    public static void backupOldDB(File dbFile, File dataFolder) {
         if (dbFile.exists()) {
             try {
                 // Optional: Make backup first
@@ -91,7 +91,7 @@ public class MySQL {
                 } else {
                     AntiVPN.getInstance().getExecutor().log("Backup directory already exists");
                 }
-                File backupFile = new File(backupDir, "database.mv.db.backup_" + System.currentTimeMillis());
+                File backupFile = new File(backupDir, dbFile.getName() + ".backup_" + System.currentTimeMillis());
                 Files.copy(dbFile.toPath(), backupFile.toPath());
 
                 // Actually delete the file

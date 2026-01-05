@@ -49,7 +49,7 @@ public class VelocityListener extends VPNExecutor {
                         LegacyComponentSerializer.builder()
                                 .character('&')
                                 .build().deserialize(AntiVPN.getInstance().getVpnConfig()
-                                        .countryVanillaKickReason()
+                                        .getCountryVanillaKickReason()
                                         .replace("%player%", event.getPlayer().getUsername())
                                         .replace("%country%", instantResult.response().getCountryName())
                                         .replace("%code%", instantResult.response().getCountryCode()))));
@@ -59,7 +59,7 @@ public class VelocityListener extends VPNExecutor {
                     event.setResult(ResultedEvent.ComponentResult.denied(LegacyComponentSerializer.builder()
                             .character('&')
                             .build().deserialize(AntiVPN.getInstance().getVpnConfig()
-                                    .getKickString()
+                                    .getKickMessage()
                                     .replace("%player%", event.getPlayer().getUsername())
                                     .replace("%country%", instantResult.response().getCountryName())
                                     .replace("%code%", instantResult.response().getCountryCode()))));
@@ -97,14 +97,14 @@ public class VelocityListener extends VPNExecutor {
         //In case the user wants to run their own commands instead of using the
         // built in kicking
 
-        if(AntiVPN.getInstance().getVpnConfig().kickPlayersOnDetect()) {
+        if(AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
             switch (checkResult.resultType()) {
                 case DENIED_PROXY -> VelocityPlugin.INSTANCE.getServer().getScheduler()
                             .buildTask(VelocityPlugin.INSTANCE.getPluginInstance(), () ->
                                     event.getPlayer().disconnect(LegacyComponentSerializer.builder()
                                             .character('&')
                                             .build().deserialize(AntiVPN.getInstance().getVpnConfig()
-                                                    .getKickString()
+                                                    .getKickMessage()
                                                     .replace("%player%", event.getPlayer().getUsername())
                                                     .replace("%country%", result.getCountryName())
                                                     .replace("%code%", result.getCountryCode()))))
@@ -114,7 +114,7 @@ public class VelocityListener extends VPNExecutor {
                                     event.getPlayer().disconnect(LegacyComponentSerializer.builder()
                                             .character('&')
                                             .build().deserialize(AntiVPN.getInstance().getVpnConfig()
-                                                    .countryVanillaKickReason()
+                                                    .getCountryVanillaKickReason()
                                                     .replace("%player%", event.getPlayer().getUsername())
                                                     .replace("%country%", result.getCountryName())
                                                     .replace("%code%", result.getCountryCode()))))

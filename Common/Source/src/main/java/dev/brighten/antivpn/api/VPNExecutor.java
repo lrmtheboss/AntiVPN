@@ -17,7 +17,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public abstract class VPNExecutor {
-    public static ScheduledExecutorService threadExecutor = Executors.newScheduledThreadPool(2);
+    @Getter
+    private ScheduledExecutorService threadExecutor = Executors.newScheduledThreadPool(2);
 
     @Getter
     private final Set<UUID> whitelisted = Collections.synchronizedSet(new HashSet<>());
@@ -75,12 +76,12 @@ public abstract class VPNExecutor {
                                 StringUtil.varReplace(dev.brighten.antivpn.AntiVPN.getInstance().getVpnConfig()
                                         .alertMessage(), player, result.response()))));
 
-        if(AntiVPN.getInstance().getVpnConfig().kickPlayersOnDetect()) {
+        if(AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
             switch (result.resultType()) {
                 case DENIED_PROXY -> player.kickPlayer(StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
-                        .getKickString(), player, result.response()));
+                        .getKickMessage(), player, result.response()));
                 case DENIED_COUNTRY -> player.kickPlayer(StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
-                        .countryVanillaKickReason(), player, result.response()));
+                        .getCountryVanillaKickReason(), player, result.response()));
             }
         }
 

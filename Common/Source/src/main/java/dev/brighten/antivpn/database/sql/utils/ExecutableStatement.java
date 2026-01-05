@@ -7,15 +7,14 @@ import java.sql.*;
 import java.util.UUID;
 
 public class ExecutableStatement {
-    private PreparedStatement statement;
+    private final PreparedStatement statement;
     private int pos = 1;
 
     public ExecutableStatement(PreparedStatement statement) {
         this.statement = statement;
     }
 
-    @SneakyThrows
-    public Integer execute() {
+    public int execute() throws SQLException {
         try {
             return statement.executeUpdate();
         } finally {
@@ -23,32 +22,28 @@ public class ExecutableStatement {
         }
     }
 
-    @SneakyThrows
-    public void execute(ResultSetIterator iterator) {
-        ResultSet rs = null;
-        try {
-            rs = statement.executeQuery();
+    public void execute(ResultSetIterator iterator) throws SQLException {
+        try(var rs = statement.executeQuery()) {
             while (rs.next()) iterator.next(rs);
         } finally {
-            MiscUtils.close(statement, rs);
+            MiscUtils.close(statement);
         }
     }
 
-    @SneakyThrows
-    public void executeSingle(ResultSetIterator iterator) {
-        ResultSet rs = null;
+    public int[] executeBatch() throws SQLException {
+       try {
+           return statement.executeBatch();
+       } finally {
+           MiscUtils.close(statement);
+       }
+    }
+
+    public ResultSet executeQuery() throws SQLException {
         try {
-            rs = statement.executeQuery();
-            if (rs.next()) iterator.next(rs);
-            else iterator.next(null);
+            return statement.executeQuery();
         } finally {
-            MiscUtils.close(statement, rs);
+            MiscUtils.close(statement);
         }
-    }
-
-    @SneakyThrows
-    public ResultSet executeQuery() {
-        return statement.executeQuery();
     }
 
     @SneakyThrows
@@ -133,6 +128,12 @@ public class ExecutableStatement {
     @SneakyThrows
     public ExecutableStatement append(byte[] obj) {
         statement.setBytes(pos++, obj);
+        return this;
+    }
+
+    @SneakyThrows
+    public ExecutableStatement addBatch() {
+        statement.addBatch();
         return this;
     }
 }

@@ -14,7 +14,10 @@ public class Query {
         Query.conn = conn;
     }
 
+    @SuppressWarnings("SqlSourceToSinkFlow")
     public static ExecutableStatement prepare(@Language("SQL") String sql) throws SQLException {
         return new ExecutableStatement(conn.prepareStatement(sql));
     }
+
+
 }

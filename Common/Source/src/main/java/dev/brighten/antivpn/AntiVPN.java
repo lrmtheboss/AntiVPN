@@ -190,7 +190,7 @@ public class AntiVPN {
                 executor.log("Failed to deregister H2 driver: " + e.getMessage());
             }
         }
-        VPNExecutor.threadExecutor.shutdown();
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().shutdown();
         if(database != null) database.shutdown();
     }
 

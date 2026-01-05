@@ -32,7 +32,7 @@ public class MongoVPN implements VPNDatabase {
             .build();
 
     public MongoVPN() {
-        VPNExecutor.threadExecutor.scheduleAtFixedRate(() -> {
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().scheduleAtFixedRate(() -> {
             if(!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled()) return;
 
             //Refreshing whitelisted players
@@ -55,7 +55,7 @@ public class MongoVPN implements VPNDatabase {
                 long lastUpdate = rdoc.get("lastAccess", 0L);
 
                 if(System.currentTimeMillis() - lastUpdate > TimeUnit.HOURS.toMillis(1)) {
-                    VPNExecutor.threadExecutor.execute(() -> deleteResponse(ip));
+                    AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> deleteResponse(ip));
                     return null;
                 }
 
@@ -101,7 +101,7 @@ public class MongoVPN implements VPNDatabase {
 
         cachedResponses.put(toCache.getIp(), toCache);
 
-        VPNExecutor.threadExecutor.execute(() -> {
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> {
             Bson update = new Document("$set", rdoc);
             cacheDocument.updateOne(Filters.eq("ip", toCache.getIp()), update,
                     new UpdateOptions().upsert(true));
@@ -133,10 +133,10 @@ public class MongoVPN implements VPNDatabase {
             Document wdoc = new Document("setting", "whitelist");
             wdoc.put("uuid", uuid.toString());
             AntiVPN.getInstance().getExecutor().getWhitelisted().add(uuid);
-            VPNExecutor.threadExecutor.execute(() -> settingsDocument.insertOne(wdoc));
+            AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> settingsDocument.insertOne(wdoc));
         } else {
             AntiVPN.getInstance().getExecutor().getWhitelisted().remove(uuid);
-            VPNExecutor.threadExecutor.execute(() -> settingsDocument.deleteMany(Filters
+            AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> settingsDocument.deleteMany(Filters
                     .and(
                             Filters.eq("setting", "whitelist"),
                             Filters.eq("uuid", uuid.toString()))));
@@ -149,10 +149,10 @@ public class MongoVPN implements VPNDatabase {
             Document wdoc = new Document("setting", "whitelist").append("ip", ip);
 
             AntiVPN.getInstance().getExecutor().getWhitelistedIps().add(ip);
-            VPNExecutor.threadExecutor.execute(() -> settingsDocument.insertOne(wdoc));
+            AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> settingsDocument.insertOne(wdoc));
         } else {
             AntiVPN.getInstance().getExecutor().getWhitelistedIps().remove(ip);
-            VPNExecutor.threadExecutor.execute(() -> settingsDocument.deleteMany(Filters
+            AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> settingsDocument.deleteMany(Filters
                     .and(
                             Filters.eq("setting", "whitelist"),
                             Filters.eq("ip", ip))));
@@ -179,29 +179,29 @@ public class MongoVPN implements VPNDatabase {
 
     @Override
     public void getStoredResponseAsync(String ip, Consumer<Optional<VPNResponse>> result) {
-        VPNExecutor.threadExecutor.execute(() -> result.accept(getStoredResponse(ip)));
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(getStoredResponse(ip)));
     }
 
     @Override
     public void isWhitelistedAsync(UUID uuid, Consumer<Boolean> result) {
-        VPNExecutor.threadExecutor.execute(() -> result.accept(isWhitelisted(uuid)));
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(isWhitelisted(uuid)));
     }
 
     @Override
     public void isWhitelistedAsync(String ip, Consumer<Boolean> result) {
-        VPNExecutor.threadExecutor.execute(() -> result.accept(isWhitelisted(ip)));
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(isWhitelisted(ip)));
     }
 
     @Override
     public void alertsState(UUID uuid, Consumer<Boolean> result) {
-        VPNExecutor.threadExecutor.execute(() -> result.accept(settingsDocument
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(settingsDocument
                 .find(Filters.and(Filters.eq("setting", "alerts"),
                 Filters.eq("uuid", uuid.toString()))).first() != null));
     }
 
     @Override
     public void updateAlertsState(UUID uuid, boolean state) {
-        VPNExecutor.threadExecutor.execute(() -> {
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> {
             settingsDocument.deleteMany(Filters.and(Filters.eq("setting", "alerts"),
                     Filters.eq("uuid", uuid.toString())));
             if(state) {

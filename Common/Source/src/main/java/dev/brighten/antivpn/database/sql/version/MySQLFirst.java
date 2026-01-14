@@ -28,15 +28,19 @@ public class MySQLFirst extends First {
 
     @Override
     public void update(VPNDatabase database) throws DatabaseException {
-        try {
-            Query.prepare("select `DATA_TYPE` from INFORMATION_SCHEMA.COLUMNS " +
-                    "WHERE table_name = 'responses' AND COLUMN_NAME = 'isp';").execute(set -> {
+        try(var statement = Query.prepare("select `DATA_TYPE` from INFORMATION_SCHEMA.COLUMNS " +
+                "WHERE table_name = 'responses' AND COLUMN_NAME = 'isp';")) {
+            statement.execute(set -> {
                 if(set.getObject("DATA_TYPE").toString().contains("varchar")) {
                     AntiVPN.getInstance().getExecutor().log("Using old database format for storing responses! " +
                             "Dropping table and creating a new one...");
-                    if(Query.prepare("drop table `responses`").execute() > 0) {
-                        AntiVPN.getInstance().getExecutor().log("Successfully dropped table!");
+                    try(var state = Query.prepare("drop table `responses`")) {
+                        if(state.execute() > 0) {
+                            AntiVPN.getInstance().getExecutor().log("Successfully dropped table!");
+                        }
                     }
+
+
                 }
             });
         } catch (SQLException e) {

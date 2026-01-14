@@ -133,7 +133,7 @@ public abstract class VPNExecutor {
             return AntiVPN.getInstance().getDatabase().isWhitelisted(ip);
         }
         try {
-            return whitelistedIps.contains(new CIDRUtils(ip + "/32"));
+            return whitelistedIps.contains(new CIDRUtils(ip));
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }

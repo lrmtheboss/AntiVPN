@@ -22,7 +22,7 @@
     <parent>
         <groupId>dev.brighten.antivpn</groupId>
         <artifactId>Sponge</artifactId>
-        <version>1.9.4</version>
+        <version>1.10.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -49,13 +49,13 @@
         <dependency>
             <groupId>dev.brighten.antivpn</groupId>
             <artifactId>loader-utils</artifactId>
-            <version>1.9.4</version>
+            <version>1.10.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>dev.brighten.antivpn</groupId>
             <artifactId>Source</artifactId>
-            <version>1.9.4</version>
+            <version>1.10.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

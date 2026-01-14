@@ -146,7 +146,7 @@ public class MongoVPN implements VPNDatabase {
     @Override
     public boolean isWhitelisted(String ip) {
         try {
-            return isWhitelisted(new CIDRUtils(ip + "/32"));
+            return isWhitelisted(new CIDRUtils(ip));
         } catch (UnknownHostException e) {
             AntiVPN.getInstance().getExecutor().log("Failed to check whitelist for IP: " + ip, e);
             return false;

@@ -22,7 +22,7 @@
     <parent>
         <groupId>dev.brighten.antivpn</groupId>
         <artifactId>Bukkit</artifactId>
-        <version>1.9.4</version>
+        <version>1.10.0</version>
     </parent>
     <groupId>dev.brighten.antivpn.bukkit</groupId>
     <artifactId>Loader</artifactId>
@@ -99,7 +99,7 @@
         <dependency>
             <groupId>dev.brighten.antivpn</groupId>
             <artifactId>loader-utils</artifactId>
-            <version>1.9.4</version>
+            <version>1.10.0</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>

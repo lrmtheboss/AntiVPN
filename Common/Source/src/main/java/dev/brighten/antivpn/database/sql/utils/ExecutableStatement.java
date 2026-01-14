@@ -16,13 +16,14 @@
 
 package dev.brighten.antivpn.database.sql.utils;
 
-import dev.brighten.antivpn.utils.MiscUtils;
+import lombok.Getter;
 import lombok.SneakyThrows;
 
 import java.sql.*;
 import java.util.UUID;
 
-public class ExecutableStatement {
+public class ExecutableStatement implements AutoCloseable {
+    @Getter
     private final PreparedStatement statement;
     private int pos = 1;
 
@@ -31,35 +32,21 @@ public class ExecutableStatement {
     }
 
     public int execute() throws SQLException {
-        try {
-            return statement.executeUpdate();
-        } finally {
-            MiscUtils.close(statement);
-        }
+        return statement.executeUpdate();
     }
 
     public void execute(ResultSetIterator iterator) throws SQLException {
         try(var rs = statement.executeQuery()) {
             while (rs.next()) iterator.next(rs);
-        } finally {
-            MiscUtils.close(statement);
         }
     }
 
     public int[] executeBatch() throws SQLException {
-       try {
-           return statement.executeBatch();
-       } finally {
-           MiscUtils.close(statement);
-       }
+        return statement.executeBatch();
     }
 
     public ResultSet executeQuery() throws SQLException {
-        try {
-            return statement.executeQuery();
-        } finally {
-            MiscUtils.close(statement);
-        }
+        return statement.executeQuery();
     }
 
     @SneakyThrows
@@ -151,5 +138,10 @@ public class ExecutableStatement {
     public ExecutableStatement addBatch() {
         statement.addBatch();
         return this;
+    }
+
+    @Override
+    public void close() throws SQLException {
+        statement.close();
     }
 }

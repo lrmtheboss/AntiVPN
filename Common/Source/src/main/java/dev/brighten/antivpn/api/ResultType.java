@@ -23,6 +23,7 @@ public enum ResultType {
     WHITELISTED(false),
     DENIED_COUNTRY(true),
     DENIED_PROXY(true),
+    API_FAILURE(false),
     UNKNOWN(false);
 
     @Getter

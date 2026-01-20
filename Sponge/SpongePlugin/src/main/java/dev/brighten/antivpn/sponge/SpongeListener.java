@@ -19,7 +19,6 @@ package dev.brighten.antivpn.sponge;
 import dev.brighten.antivpn.AntiVPN;
 import dev.brighten.antivpn.api.*;
 import dev.brighten.antivpn.sponge.util.StringUtil;
-import dev.brighten.antivpn.utils.Tuple;
 import net.kyori.adventure.text.Component;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.exception.CommandException;
@@ -42,44 +41,38 @@ public class SpongeListener extends VPNExecutor {
                         event.connection().address().getAddress()
                 )));
 
-        CheckResult instantResult = player.get().checkPlayer(result -> {
-            if(result.resultType().isShouldBlock()) {
-                AntiVPN.getInstance().getExecutor().getToKick().add(new Tuple<>(result, player.get().getUuid()));
+        player.get().checkPlayer(result -> {
+            if(!result.resultType().isShouldBlock()) return;
+
+            if(!AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
+                return;
             }
-        });
 
-        if(!instantResult.resultType().isShouldBlock()) {
-            return;
-        }
-
-        AntiVPN.getInstance().getExecutor().getToKick().add(new Tuple<>(instantResult, player.get().getUuid()));
-
-        if(!AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
-            return;
-        }
-
-        AntiVPN.getInstance().getExecutor().log(Level.INFO, "%s was kicked from cache with IP %s", player.get().getName(), instantResult.response().getIp());
-
-        event.setCancelled(true);
-        switch (instantResult.resultType()) {
-            case DENIED_PROXY -> {
-                AntiVPN.getInstance().getExecutor().log(Level.INFO, player.get().getName()
-                        + " joined on a VPN/Proxy (" + instantResult.response().getMethod() + ")");
-                event.setMessage(Component.text(StringUtil
-                        .translateColorCodes('&', AntiVPN.getInstance().getVpnConfig()
-                                .getKickMessage()
-                                .replace("%player%", player.get().getName())
-                                .replace("%country%", instantResult.response().getCountryName())
-                                .replace("%code%", instantResult.response().getCountryCode()))));
+            if(result.isFromCache()) {
+                AntiVPN.getInstance().getExecutor().log(Level.INFO, "%s was kicked from cache with IP %s", player.get().getName(), result.response().getIp());
             }
-            case DENIED_COUNTRY ->
+
+            event.setCancelled(true);
+            switch (result.resultType()) {
+                case DENIED_PROXY -> {
+                    AntiVPN.getInstance().getExecutor().log(Level.INFO, player.get().getName()
+                            + " joined on a VPN/Proxy (" + result.response().getMethod() + ")");
                     event.setMessage(Component.text(StringUtil
                             .translateColorCodes('&', AntiVPN.getInstance().getVpnConfig()
-                                    .getCountryVanillaKickReason()
+                                    .getKickMessage()
                                     .replace("%player%", player.get().getName())
-                                    .replace("%country%", instantResult.response().getCountryName())
-                                    .replace("%code%", instantResult.response().getCountryCode()))));
-        }
+                                    .replace("%country%", result.response().getCountryName())
+                                    .replace("%code%", result.response().getCountryCode()))));
+                }
+                case DENIED_COUNTRY ->
+                        event.setMessage(Component.text(StringUtil
+                                .translateColorCodes('&', AntiVPN.getInstance().getVpnConfig()
+                                        .getCountryVanillaKickReason()
+                                        .replace("%player%", player.get().getName())
+                                        .replace("%country%", result.response().getCountryName())
+                                        .replace("%code%", result.response().getCountryCode()))));
+            }
+        });
     }
 
     @Listener

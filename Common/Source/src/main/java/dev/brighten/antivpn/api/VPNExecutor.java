@@ -28,23 +28,18 @@ import lombok.Getter;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.logging.Level;
 
+@Getter
 public abstract class VPNExecutor {
-    @Getter
     private final ScheduledExecutorService threadExecutor = Executors.newScheduledThreadPool(2);
-
-    @Getter
     private final Set<UUID> whitelisted = Collections.synchronizedSet(new HashSet<>());
-    @Getter
     private final Set<CIDRUtils> whitelistedIps = Collections.synchronizedSet(new HashSet<>());
+    private final Queue<Tuple<CheckResult, UUID>> toKick = new LinkedBlockingQueue<>();
+    private final Queue<APIPlayer> playersToRecheck = new LinkedBlockingQueue<>();
+    private ScheduledFuture<?> kickTask = null;
 
-    @Getter
-    private final List<Tuple<CheckResult, UUID>> toKick = Collections.synchronizedList(new LinkedList<>());
 
     public abstract void registerListeners();
 
@@ -61,15 +56,13 @@ public abstract class VPNExecutor {
     }
 
     public void startKickChecks() {
-        threadExecutor.scheduleAtFixedRate(() -> {
+        kickTask = threadExecutor.scheduleAtFixedRate(() -> {
             synchronized (toKick) {
                 if(toKick.isEmpty()) return;
 
-                Iterator<Tuple<CheckResult, UUID>> i = toKick.iterator();
+                Tuple<CheckResult, UUID> toCheck;
 
-                while(i.hasNext()) {
-                    var toCheck = i.next();
-
+                while((toCheck = toKick.poll()) != null) {
                     Optional<APIPlayer> player = AntiVPN.getInstance().getPlayerExecutor().getPlayer(toCheck.second());
 
                     if(player.isEmpty()) {
@@ -77,14 +70,18 @@ public abstract class VPNExecutor {
                     }
 
                     handleKickingOfPlayer(toCheck.first(), player.get());
-
-                    i.remove();
                 }
             }
         }, 8, 2, TimeUnit.SECONDS);
     }
 
     public void handleKickingOfPlayer(CheckResult result, APIPlayer player) {
+
+        //Ensuring kick task is always running
+        if(kickTask == null || kickTask.isDone() || kickTask.isCancelled()) {
+            startKickChecks();
+        }
+
         if (AntiVPN.getInstance().getVpnConfig().isAlertToSTaff()) AntiVPN.getInstance().getPlayerExecutor()
                 .getOnlinePlayers()
                 .stream()
@@ -101,9 +98,9 @@ public abstract class VPNExecutor {
                 case DENIED_COUNTRY -> player.kickPlayer(StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
                         .getCountryVanillaKickReason(), player, result.response()));
             }
+        } else {
+            if(!AntiVPN.getInstance().getVpnConfig().isCommandsEnabled()) return;
         }
-
-        if(!AntiVPN.getInstance().getVpnConfig().isCommandsEnabled()) return;
 
         switch (result.resultType()) {
             case DENIED_PROXY -> {
@@ -119,6 +116,9 @@ public abstract class VPNExecutor {
                 }
             }
         }
+
+        //Ensuring players are actually kicked as they are supposed to be.
+        toKick.add(new Tuple<>(result, player.getUuid()));
     }
 
     public boolean isWhitelisted(UUID uuid) {

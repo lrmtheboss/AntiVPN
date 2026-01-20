@@ -44,4 +44,6 @@ public class VelocityPlayer extends APIPlayer {
     public boolean hasPermission(String permission) {
         return player.hasPermission(permission);
     }
+
+
 }

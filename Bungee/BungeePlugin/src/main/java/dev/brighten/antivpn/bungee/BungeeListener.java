@@ -19,10 +19,7 @@ package dev.brighten.antivpn.bungee;
 import dev.brighten.antivpn.AntiVPN;
 import dev.brighten.antivpn.api.*;
 import dev.brighten.antivpn.utils.MiscUtils;
-import dev.brighten.antivpn.utils.StringUtil;
-import dev.brighten.antivpn.utils.Tuple;
-import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.event.LoginEvent;
 import net.md_5.bungee.api.event.PlayerDisconnectEvent;
 import net.md_5.bungee.api.event.PreLoginEvent;
 import net.md_5.bungee.api.plugin.Listener;
@@ -89,43 +86,19 @@ public class BungeeListener extends VPNExecutor implements Listener {
                             ((InetSocketAddress) event.getConnection().getSocketAddress()).getAddress());
                 });
 
-        CheckResult instantResult = player.checkPlayer(result -> {
+        player.checkPlayer(result -> {
             if (!result.resultType().isShouldBlock()) return;
-            AntiVPN.getInstance().getExecutor().getToKick()
-                    .add(new Tuple<>(result, player.getUuid()));
+            event.setCancelled(true);
         });
+    }
 
-        if (!instantResult.resultType().isShouldBlock()) {
-            return;
-        }
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onJoin(LoginEvent event) {
+        if(event.isCancelled()) return;
 
-        AntiVPN.getInstance().getExecutor().getToKick()
-                .add(new Tuple<>(instantResult, player.getUuid()));
-
-        if (!AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
-            return;
-        }
-
-        event.setCancelled(true);
-        AntiVPN.getInstance().getExecutor().log(Level.INFO,
-                "%s was kicked from pre-login proxy cache.",
-                event.getConnection().getName());
-
-
-        switch (instantResult.resultType()) {
-            case DENIED_PROXY -> event.setReason(TextComponent.fromLegacy(ChatColor
-                    .translateAlternateColorCodes('&',
-                            StringUtil.varReplace(
-                                    AntiVPN.getInstance().getVpnConfig().getKickMessage(),
-                                    player,
-                                    instantResult.response()))));
-            case DENIED_COUNTRY -> event.setReason(TextComponent.fromLegacy(ChatColor
-                    .translateAlternateColorCodes('&',
-                            StringUtil.varReplace(
-                                    AntiVPN.getInstance().getVpnConfig().getCountryVanillaKickReason(),
-                                    player,
-                                    instantResult.response()))));
-        }
+        // Handling player alerts on join
+        AntiVPN.getInstance().getPlayerExecutor().getPlayer(event.getConnection().getUniqueId())
+                .ifPresent(APIPlayer::checkAlertsState);
     }
 
     @EventHandler

@@ -18,12 +18,9 @@ package dev.brighten.antivpn.bukkit;
 
 import dev.brighten.antivpn.AntiVPN;
 import dev.brighten.antivpn.api.APIPlayer;
-import dev.brighten.antivpn.api.CheckResult;
 import dev.brighten.antivpn.api.OfflinePlayer;
 import dev.brighten.antivpn.api.VPNExecutor;
-import dev.brighten.antivpn.message.VpnString;
 import dev.brighten.antivpn.utils.StringUtil;
-import dev.brighten.antivpn.utils.Tuple;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
@@ -36,7 +33,6 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.logging.Level;
 
-@SuppressWarnings("unchecked")
 public class BukkitListener extends VPNExecutor implements Listener {
 
     @Override
@@ -81,66 +77,50 @@ public class BukkitListener extends VPNExecutor implements Listener {
                         event.getAddress()
                 ));
 
-        CheckResult instantResult = player.checkPlayer(result -> {
+        player.checkPlayer(result -> {
             if(!result.resultType().isShouldBlock()) return;
 
-            AntiVPN.getInstance().getExecutor().log(Level.INFO, "Adding %s to kick", event.getPlayer().getName());
-            AntiVPN.getInstance().getExecutor().getToKick().add(new Tuple<>(result, event.getPlayer().getUniqueId()));
-        });
-
-        if(!instantResult.resultType().isShouldBlock()) return;
-
-        AntiVPN.getInstance().getExecutor().getToKick()
-                .add(new Tuple<>(instantResult, event.getPlayer().getUniqueId()));
-
-        if(!AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
-            return;
-        }
-
-        AntiVPN.getInstance().getExecutor().log(Level.INFO, "%s was kicked from pre-login cache with IP %s", event.getPlayer().getName(), instantResult.response().getIp());
-
-        event.setResult(PlayerLoginEvent.Result.KICK_BANNED);
-        switch (instantResult.resultType()) {
-            case DENIED_COUNTRY -> event.setKickMessage(StringUtil.translateAlternateColorCodes('&',
-                    StringUtil.varReplace(
-                            AntiVPN.getInstance().getVpnConfig().getCountryVanillaKickReason(),
-                            player,
-                            instantResult.response()
-                    )));
-            case DENIED_PROXY -> {
-                if(AntiVPN.getInstance().getVpnConfig().isAlertToSTaff()) {
-                    AntiVPN.getInstance().getPlayerExecutor().getOnlinePlayers().stream()
-                            .filter(APIPlayer::isAlertsEnabled)
-                            .forEach(pl ->
-                                    pl.sendMessage(StringUtil.varReplace(
-                                            ChatColor.translateAlternateColorCodes(
-                                                    '&',
-                                                    AntiVPN.getInstance().getVpnConfig().getAlertMsg()),
-                                            player,
-                                            instantResult.response())));
-                }
-                event.setKickMessage(StringUtil.translateAlternateColorCodes('&',
-                        StringUtil.varReplace(
-                                AntiVPN.getInstance().getVpnConfig().getKickMessage(),
-                                player,
-                                instantResult.response()
-                        )));
+            if(!AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
+                return;
             }
-        }
+
+            AntiVPN.getInstance().getExecutor().log(Level.INFO, "%s was kicked from pre-login cache with IP %s", event.getPlayer().getName(), result.response().getIp());
+
+            event.setResult(PlayerLoginEvent.Result.KICK_BANNED);
+            switch (result.resultType()) {
+                case DENIED_COUNTRY -> event.setKickMessage(StringUtil.translateAlternateColorCodes('&',
+                        StringUtil.varReplace(
+                                AntiVPN.getInstance().getVpnConfig().getCountryVanillaKickReason(),
+                                player,
+                                result.response()
+                        )));
+                case DENIED_PROXY -> {
+                    if(AntiVPN.getInstance().getVpnConfig().isAlertToSTaff()) {
+                        AntiVPN.getInstance().getPlayerExecutor().getOnlinePlayers().stream()
+                                .filter(APIPlayer::isAlertsEnabled)
+                                .forEach(pl ->
+                                        pl.sendMessage(StringUtil.varReplace(
+                                                ChatColor.translateAlternateColorCodes(
+                                                        '&',
+                                                        AntiVPN.getInstance().getVpnConfig().getAlertMsg()),
+                                                player,
+                                                result.response())));
+                    }
+                    event.setKickMessage(StringUtil.translateAlternateColorCodes('&',
+                            StringUtil.varReplace(
+                                    AntiVPN.getInstance().getVpnConfig().getKickMessage(),
+                                    player,
+                                    result.response()
+                            )));
+                }
+            }
+        });
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onJoin(final PlayerJoinEvent event) {
         AntiVPN.getInstance().getPlayerExecutor().getPlayer(event.getPlayer().getUniqueId())
-                .ifPresent(player -> AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() ->
-                        AntiVPN.getInstance().getDatabase().alertsState(player.getUuid(), state -> {
-                            if(state) {
-                                player.setAlertsEnabled(true);
-                                player.sendMessage(AntiVPN.getInstance().getMessageHandler()
-                                        .getString("command-alerts-toggled")
-                                        .getFormattedMessage(new VpnString.Var<>("state", true)));
-                            }
-                })));
+                .ifPresent(APIPlayer::checkAlertsState);
     }
 
     @EventHandler

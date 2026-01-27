@@ -104,7 +104,6 @@ public class VelocityPlugin implements LoaderBootstrap {
 
     @Override
     public void onDisable() {
-        logger.info("Disabling AntiVPN...");
         AntiVPN.getInstance().getExecutor().log("Disabling AntiVPN...");
 
         if (AntiVPN.getInstance().getDatabase() != null) {

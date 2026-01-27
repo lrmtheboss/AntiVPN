@@ -83,7 +83,7 @@ public class SpongeListener extends VPNExecutor {
 
     @Override
     public void log(String log, Object... objects) {
-        log(Level.INFO, String.format(log, objects));
+        log(Level.INFO, log, objects);
     }
 
     @Override

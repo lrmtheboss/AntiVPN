@@ -50,7 +50,7 @@ public class BungeeListener extends VPNExecutor implements Listener {
 
     @Override
     public void log(String log, Object... objects) {
-        log(Level.INFO, String.format(log, objects));
+        log(Level.INFO, log, objects);
     }
 
     @Override

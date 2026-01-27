@@ -102,19 +102,26 @@ public abstract class VPNExecutor {
             if(!AntiVPN.getInstance().getVpnConfig().isCommandsEnabled()) return;
         }
 
-        switch (result.resultType()) {
-            case DENIED_PROXY -> {
-                for (String command : AntiVPN.getInstance().getVpnConfig().commands()) {
-                    runCommand(StringUtil.translateAlternateColorCodes('&',
-                            StringUtil.varReplace(command, player, result.response())));
+        Runnable runCommands = () -> {
+            switch (result.resultType()) {
+                case DENIED_PROXY -> {
+                    for (String command : AntiVPN.getInstance().getVpnConfig().commands()) {
+                        runCommand(StringUtil.varReplace(command, player, result.response()));
+                    }
+                }
+                case DENIED_COUNTRY -> {
+                    for (String command : AntiVPN.getInstance().getVpnConfig().countryKickCommands()) {
+                        runCommand(StringUtil.varReplace(command, player, result.response()));
+                    }
                 }
             }
-            case DENIED_COUNTRY -> {
-                for (String command : AntiVPN.getInstance().getVpnConfig().countryKickCommands()) {
-                    runCommand(StringUtil.translateAlternateColorCodes('&',
-                            StringUtil.varReplace(command, player, result.response())));
-                }
-            }
+        };
+
+        // Fixes the commands running too fast and causing messaging errors by any downstream plugins like LiteBans
+        var scheduleResult = threadExecutor.schedule(runCommands, 1, TimeUnit.SECONDS);
+
+        if(scheduleResult.isCancelled()) {
+            runCommands.run();
         }
 
         //Ensuring players are actually kicked as they are supposed to be.

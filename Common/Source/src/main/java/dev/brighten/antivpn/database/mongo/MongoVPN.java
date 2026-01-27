@@ -144,11 +144,11 @@ public class MongoVPN implements VPNDatabase {
     }
 
     @Override
-    public boolean isWhitelisted(String ip) {
+    public boolean isWhitelisted(String cidr) {
         try {
-            return isWhitelisted(new CIDRUtils(ip));
+            return isWhitelisted(new CIDRUtils(cidr));
         } catch (UnknownHostException e) {
-            AntiVPN.getInstance().getExecutor().log("Failed to check whitelist for IP: " + ip, e);
+            AntiVPN.getInstance().getExecutor().log("Failed to check whitelist for IP: " + cidr, e);
             return false;
         }
     }
@@ -157,7 +157,7 @@ public class MongoVPN implements VPNDatabase {
     public boolean isWhitelisted(CIDRUtils cidr) {
         var start =  new Decimal128(new BigDecimal(cidr.getStartIpInt()));
         var end = new Decimal128(new BigDecimal(cidr.getEndIpInt()));
-        return settingsDocument.find(Filters.and(Filters.eq("setting", "whitelisted"),
+        return settingsDocument.find(Filters.and(Filters.eq("setting", "whitelist"),
                 Filters.lte("ip_start", start), Filters.gte("ip_end", end))).first() != null;
     }
 
@@ -193,7 +193,8 @@ public class MongoVPN implements VPNDatabase {
         settingsDocument.deleteMany(Filters
                 .and(
                         Filters.eq("setting", "whitelist"),
-                        Filters.eq("cidr_string", cidr.toString())));
+                        Filters.eq("ip_start", new Decimal128(new BigDecimal(cidr.getStartIpInt()))),
+                        Filters.eq("ip_end", new Decimal128(new BigDecimal(cidr.getEndIpInt())))));
     }
 
     @Override

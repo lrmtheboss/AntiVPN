@@ -152,8 +152,8 @@ public class H2VPN implements VPNDatabase {
 
     @SneakyThrows
     @Override
-    public boolean isWhitelisted(String ip) {
-        return isWhitelisted(new CIDRUtils(ip));
+    public boolean isWhitelisted(String cidr) {
+        return isWhitelisted(new CIDRUtils(cidr));
     }
 
     @Override

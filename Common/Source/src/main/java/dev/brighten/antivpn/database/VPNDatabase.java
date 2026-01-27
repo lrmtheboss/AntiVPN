@@ -33,7 +33,7 @@ public interface VPNDatabase {
 
     boolean isWhitelisted(UUID uuid);
 
-    boolean isWhitelisted(String ip);
+    boolean isWhitelisted(String cidr);
 
     boolean isWhitelisted(CIDRUtils cidr);
 

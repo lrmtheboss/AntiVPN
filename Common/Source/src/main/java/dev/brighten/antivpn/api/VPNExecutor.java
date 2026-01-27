@@ -135,12 +135,12 @@ public abstract class VPNExecutor {
         return whitelisted.contains(uuid);
     }
 
-    public boolean isWhitelisted(String ip) {
+    public boolean isWhitelisted(String cidr) {
         if(AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled()) {
-            return AntiVPN.getInstance().getDatabase().isWhitelisted(ip);
+            return AntiVPN.getInstance().getDatabase().isWhitelisted(cidr);
         }
         try {
-            return whitelistedIps.contains(new CIDRUtils(ip));
+            return whitelistedIps.contains(new CIDRUtils(cidr));
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }

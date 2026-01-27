@@ -61,12 +61,11 @@ public class VelocityPlugin implements LoaderBootstrap {
 
     private String getDatabaseType() {
         VPNDatabase database = AntiVPN.getInstance().getDatabase();
-
-        if(database instanceof H2VPN) {
-            return "H2";
-        } else if(database instanceof MySqlVPN) {
+        if(database instanceof MySqlVPN) {
             return "MySQL";
-        } else if(database instanceof MongoVPN) {
+        } else if(database instanceof H2VPN) {
+            return "H2";
+        }  else if(database instanceof MongoVPN) {
             return "MongoDB";
         } else {
             return "No-Database";

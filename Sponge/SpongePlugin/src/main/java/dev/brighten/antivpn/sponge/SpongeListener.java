@@ -18,7 +18,7 @@ package dev.brighten.antivpn.sponge;
 
 import dev.brighten.antivpn.AntiVPN;
 import dev.brighten.antivpn.api.*;
-import dev.brighten.antivpn.sponge.util.StringUtil;
+import dev.brighten.antivpn.utils.StringUtil;
 import net.kyori.adventure.text.Component;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.exception.CommandException;
@@ -48,30 +48,14 @@ public class SpongeListener extends VPNExecutor {
                 return;
             }
 
-            if(result.isFromCache()) {
-                AntiVPN.getInstance().getExecutor().log(Level.INFO, "%s was kicked from cache with IP %s", player.get().getName(), result.response().getIp());
-            }
-
             event.setCancelled(true);
-            switch (result.resultType()) {
-                case DENIED_PROXY -> {
-                    AntiVPN.getInstance().getExecutor().log(Level.INFO, player.get().getName()
-                            + " joined on a VPN/Proxy (" + result.response().getMethod() + ")");
-                    event.setMessage(Component.text(StringUtil
-                            .translateColorCodes('&', AntiVPN.getInstance().getVpnConfig()
-                                    .getKickMessage()
-                                    .replace("%player%", player.get().getName())
-                                    .replace("%country%", result.response().getCountryName())
-                                    .replace("%code%", result.response().getCountryCode()))));
-                }
-                case DENIED_COUNTRY ->
-                        event.setMessage(Component.text(StringUtil
-                                .translateColorCodes('&', AntiVPN.getInstance().getVpnConfig()
-                                        .getCountryVanillaKickReason()
-                                        .replace("%player%", player.get().getName())
-                                        .replace("%country%", result.response().getCountryName())
-                                        .replace("%code%", result.response().getCountryCode()))));
-            }
+            event.setMessage(Component.text(switch (result.resultType()) {
+                case DENIED_PROXY -> StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
+                        .getKickMessage(), player.get(), result.response());
+                case DENIED_COUNTRY -> StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
+                        .getCountryVanillaKickReason(), player.get(), result.response());
+                default -> "You were kicked by KauriVPN for an unknown reason!";
+            }));
         });
     }
 

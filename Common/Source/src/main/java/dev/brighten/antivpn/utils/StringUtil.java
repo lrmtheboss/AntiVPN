@@ -54,10 +54,10 @@ public class StringUtil {
     }
 
     public static String varReplace(String input, APIPlayer player, VPNResponse result) {
-        return input.replace("%player%", player.getName())
+        return translateAlternateColorCodes('&', input.replace("%player%", player.getName())
                 .replace("%reason%", result.getMethod())
                 .replace("%country%", result.getCountryName())
-                .replace("%city%", result.getCity());
+                .replace("%city%", result.getCity()));
     }
 
     public static String translateAlternateColorCodes(char altColorChar, String textToTranslate) {

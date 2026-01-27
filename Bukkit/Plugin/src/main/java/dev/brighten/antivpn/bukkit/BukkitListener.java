@@ -84,36 +84,21 @@ public class BukkitListener extends VPNExecutor implements Listener {
                 return;
             }
 
-            AntiVPN.getInstance().getExecutor().log(Level.INFO, "%s was kicked from pre-login cache with IP %s", event.getPlayer().getName(), result.response().getIp());
-
             event.setResult(PlayerLoginEvent.Result.KICK_BANNED);
-            switch (result.resultType()) {
-                case DENIED_COUNTRY -> event.setKickMessage(StringUtil.translateAlternateColorCodes('&',
+            event.setKickMessage(switch (result.resultType()) {
+                case DENIED_COUNTRY -> StringUtil.varReplace(
+                        AntiVPN.getInstance().getVpnConfig().getCountryVanillaKickReason(),
+                        player,
+                        result.response()
+                );
+                case DENIED_PROXY ->
                         StringUtil.varReplace(
-                                AntiVPN.getInstance().getVpnConfig().getCountryVanillaKickReason(),
+                                AntiVPN.getInstance().getVpnConfig().getKickMessage(),
                                 player,
                                 result.response()
-                        )));
-                case DENIED_PROXY -> {
-                    if(AntiVPN.getInstance().getVpnConfig().isAlertToSTaff()) {
-                        AntiVPN.getInstance().getPlayerExecutor().getOnlinePlayers().stream()
-                                .filter(APIPlayer::isAlertsEnabled)
-                                .forEach(pl ->
-                                        pl.sendMessage(StringUtil.varReplace(
-                                                ChatColor.translateAlternateColorCodes(
-                                                        '&',
-                                                        AntiVPN.getInstance().getVpnConfig().getAlertMsg()),
-                                                player,
-                                                result.response())));
-                    }
-                    event.setKickMessage(StringUtil.translateAlternateColorCodes('&',
-                            StringUtil.varReplace(
-                                    AntiVPN.getInstance().getVpnConfig().getKickMessage(),
-                                    player,
-                                    result.response()
-                            )));
-                }
-            }
+                        );
+                default -> "You were kicked by KauriVPN for an unknown reason!";
+            });
         });
     }
 

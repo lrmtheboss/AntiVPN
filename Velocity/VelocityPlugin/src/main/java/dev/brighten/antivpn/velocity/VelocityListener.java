@@ -52,6 +52,10 @@ public class VelocityListener extends VPNExecutor {
             player.checkPlayer(result -> {
                 if(!result.resultType().isShouldBlock()) return;
 
+                if(!AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
+                    return;
+                }
+
                 switch (result.resultType()) {
                     case DENIED_COUNTRY -> event.setResult(ResultedEvent.ComponentResult.denied(
                             LegacyComponentSerializer.builder()

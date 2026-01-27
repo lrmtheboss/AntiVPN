@@ -19,6 +19,8 @@ package dev.brighten.antivpn.bungee;
 import dev.brighten.antivpn.AntiVPN;
 import dev.brighten.antivpn.api.*;
 import dev.brighten.antivpn.utils.MiscUtils;
+import dev.brighten.antivpn.utils.StringUtil;
+import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.event.LoginEvent;
 import net.md_5.bungee.api.event.PlayerDisconnectEvent;
 import net.md_5.bungee.api.event.PreLoginEvent;
@@ -88,7 +90,19 @@ public class BungeeListener extends VPNExecutor implements Listener {
 
         player.checkPlayer(result -> {
             if (!result.resultType().isShouldBlock()) return;
+
+            if(!AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
+                return;
+            }
+
             event.setCancelled(true);
+            event.setReason(TextComponent.fromLegacy(StringUtil.varReplace(switch (result.resultType()) {
+                case DENIED_PROXY -> StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
+                        .getKickMessage(), player, result.response());
+                case DENIED_COUNTRY -> StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
+                        .getCountryVanillaKickReason(), player, result.response());
+                default -> "You were kicked by KauriVPN for an unknown reason!";
+            }, player, result.response())));
         });
     }
 

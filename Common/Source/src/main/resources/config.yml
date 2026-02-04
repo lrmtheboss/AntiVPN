@@ -49,6 +49,7 @@ webhooks:
   # Optional: Set to true to include authentication header (Authorization: Bearer <token>)
   useAuthentication: false
   # The authentication token to use when useAuthentication is true
+  # Security Note: Token is stored in plaintext. Ensure proper file permissions on this file.
   authToken: ''
   # Timeout in seconds for webhook requests (default: 5)
   timeout: 5

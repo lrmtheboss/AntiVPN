@@ -44,7 +44,7 @@ public class WebhookNotifier {
             } catch (Exception e) {
                 AntiVPN.getInstance().getExecutor().logException("Failed to send webhook notification", e);
             }
-        });
+        }, dev.brighten.antivpn.api.VPNExecutor.threadExecutor);
     }
 
     /**
@@ -91,7 +91,7 @@ public class WebhookNotifier {
             // Check response
             int responseCode = connection.getResponseCode();
             if (responseCode >= 200 && responseCode < 300) {
-                AntiVPN.getInstance().getExecutor().log(Level.FINE, 
+                AntiVPN.getInstance().getExecutor().log(Level.INFO, 
                     "Successfully sent webhook notification for player %s (response: %d)", 
                     player.getName(), responseCode);
             } else {

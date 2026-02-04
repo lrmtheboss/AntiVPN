@@ -294,6 +294,8 @@ public class VPNConfig {
 
     /**
      * The authentication token to use for webhook requests.
+     * Note: Token is stored in memory as plaintext. Ensure proper file system
+     * permissions are set on config.yml to protect sensitive authentication tokens.
      * @return String
      */
     public String webhookAuthToken() {

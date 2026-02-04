@@ -6,6 +6,7 @@ import dev.brighten.antivpn.utils.Tuple;
 import dev.brighten.antivpn.utils.json.JSONException;
 import dev.brighten.antivpn.web.FunkemunkyAPI;
 import dev.brighten.antivpn.web.objects.VPNResponse;
+import dev.brighten.antivpn.webhook.WebhookNotifier;
 import lombok.Getter;
 
 import java.io.IOException;
@@ -66,6 +67,9 @@ public abstract class VPNExecutor {
     }
 
     public void handleKickingOfPlayer(CheckResult result, APIPlayer player) {
+        // Send webhook notification if enabled
+        WebhookNotifier.sendWebhookNotification(player, result);
+
         if (AntiVPN.getInstance().getVpnConfig().alertToStaff()) AntiVPN.getInstance().getPlayerExecutor()
                 .getOnlinePlayers()
                 .stream()

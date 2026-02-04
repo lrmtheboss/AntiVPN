@@ -40,6 +40,18 @@ commands:
     - kick %player% VPNs are not allowed on our server!
 # Enable/disable the default kicking feature of KauriVPN.
 kickPlayers: true
+# Configure webhook notifications when VPN is detected
+webhooks:
+  # Enable/disable webhook notifications
+  enabled: false
+  # The webhook URL to send POST requests to when a VPN is detected
+  url: ''
+  # Optional: Set to true to include authentication header (Authorization: Bearer <token>)
+  useAuthentication: false
+  # The authentication token to use when useAuthentication is true
+  authToken: ''
+  # Timeout in seconds for webhook requests (default: 5)
+  timeout: 5
 # Configure all alerting functionality
 alerts:
   # You may set to 'false' to disable all alerts functionality

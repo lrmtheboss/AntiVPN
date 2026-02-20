@@ -4,7 +4,7 @@ This document explains how to configure and use the webhook feature in AntiVPN t
 
 ## Overview
 
-When a player is detected using a VPN or connecting from a blocked country, AntiVPN can send an HTTP POST request to a configured webhook URL with detailed information about the detection.
+When a player is detected using a VPN or connecting from a blocked country, AntiVPN can send an HTTP POST request to a configured webhook URL with detailed information about the detection. AntiVPN supports **Discord**, **Slack**, and **generic** webhook formats.
 
 ## Configuration
 
@@ -16,6 +16,11 @@ webhooks:
   enabled: false
   # The webhook URL to send POST requests to when a VPN is detected
   url: ''
+  # Webhook format type: 'discord', 'slack', or 'generic'
+  # - discord: Formats payload for Discord webhooks with rich embeds (default)
+  # - slack: Formats payload for Slack webhooks
+  # - generic: Sends raw JSON payload (for custom integrations)
+  format: 'discord'
   # Optional: Set to true to include authentication header (Authorization: Bearer <token>)
   useAuthentication: false
   # The authentication token to use when useAuthentication is true
@@ -29,13 +34,106 @@ webhooks:
 
 - **enabled**: Set to `true` to enable webhook notifications
 - **url**: The complete URL where webhook POST requests will be sent
+- **format**: The webhook format type (`discord`, `slack`, or `generic`)
 - **useAuthentication**: Set to `true` to include an `Authorization: Bearer <token>` header
 - **authToken**: The authentication token to use (only used when `useAuthentication` is true)
 - **timeout**: Connection and read timeout in seconds (default: 5)
 
-## Webhook Payload
+## Webhook Formats
 
-When a VPN is detected, AntiVPN sends a JSON payload with the following structure:
+### Discord Format (format: 'discord')
+
+Discord webhooks receive rich embeds with color-coded alerts and organized fields. This is the **recommended and default format** for Discord webhooks.
+
+**Example Discord Payload:**
+```json
+{
+  "embeds": [{
+    "title": "🚫 VPN/Proxy Detection",
+    "description": "A player attempted to join using a VPN/proxy or from a blocked country.",
+    "color": 15158332,
+    "fields": [
+      {
+        "name": "Player",
+        "value": "ExamplePlayer",
+        "inline": true
+      },
+      {
+        "name": "UUID",
+        "value": "550e8400-e29b-41d4-a716-446655440000",
+        "inline": true
+      },
+      {
+        "name": "IP Address",
+        "value": "192.0.2.1",
+        "inline": true
+      },
+      {
+        "name": "Country",
+        "value": "United States (US)",
+        "inline": true
+      },
+      {
+        "name": "City",
+        "value": "New York",
+        "inline": true
+      },
+      {
+        "name": "ISP",
+        "value": "Example ISP",
+        "inline": true
+      },
+      {
+        "name": "ASN",
+        "value": "AS12345",
+        "inline": true
+      },
+      {
+        "name": "Detection Method",
+        "value": "Blacklist",
+        "inline": true
+      },
+      {
+        "name": "Proxy Status",
+        "value": "✓ Detected",
+        "inline": true
+      }
+    ],
+    "timestamp": "2024-02-04T12:00:00.000Z",
+    "footer": {
+      "text": "AntiVPN Detection System"
+    }
+  }]
+}
+```
+
+**Features:**
+- Color coding: Red for proxy detections, Orange for country blocks
+- Rich embeds with organized fields
+- Timestamp included
+- All detection information in one message
+
+### Slack Format (format: 'slack')
+
+Slack webhooks receive simple text messages with Slack markdown formatting.
+
+**Example Slack Payload:**
+```json
+{
+  "text": "*VPN/Proxy Detection Alert*\nPlayer: ExamplePlayer\nIP: 192.0.2.1\nCountry: United States (US)\nCity: New York\nISP: Example ISP\nMethod: Blacklist\n"
+}
+```
+
+**Features:**
+- Simple text format with markdown
+- All essential information included
+- Works with standard Slack incoming webhooks
+
+### Generic Format (format: 'generic')
+
+Generic webhooks receive the raw JSON structure for custom integrations.
+
+**Example Generic Payload:**
 
 ```json
 {
@@ -59,7 +157,12 @@ When a VPN is detected, AntiVPN sends a JSON payload with the following structur
 }
 ```
 
-### Payload Fields
+**Features:**
+- Complete JSON structure
+- All fields included
+- Best for custom backend integrations
+
+## Payload Field Reference (Generic Format)
 
 - **event**: Always set to `"vpn_detected"`
 - **timestamp**: Unix timestamp in milliseconds when the detection occurred
@@ -87,12 +190,25 @@ When a VPN is detected, AntiVPN sends a JSON payload with the following structur
 webhooks:
   enabled: true
   url: 'https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN'
+  format: 'discord'
   useAuthentication: false
   authToken: ''
   timeout: 5
 ```
 
-Note: Discord webhooks require a specific format. You may need to use a proxy service to convert the AntiVPN payload format to Discord's webhook format.
+**Note:** With `format: 'discord'`, AntiVPN will automatically format the webhook payload with rich embeds that Discord understands natively. No proxy service is needed!
+
+### Slack Webhook
+
+```yaml
+webhooks:
+  enabled: true
+  url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+  format: 'slack'
+  useAuthentication: false
+  authToken: ''
+  timeout: 5
+```
 
 ### Custom Backend with Authentication
 
@@ -100,6 +216,7 @@ Note: Discord webhooks require a specific format. You may need to use a proxy se
 webhooks:
   enabled: true
   url: 'https://your-server.com/api/vpn-alerts'
+  format: 'generic'
   useAuthentication: true
   authToken: 'your-secret-token-here'
   timeout: 10
@@ -111,6 +228,7 @@ webhooks:
 webhooks:
   enabled: true
   url: 'http://localhost:8080/webhooks/vpn'
+  format: 'generic'
   useAuthentication: false
   authToken: ''
   timeout: 5

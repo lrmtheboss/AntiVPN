@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 
 public class AllowlistCommand extends Command {
 
-    private static final String[] secondArgs = new String[] {"add", "remove"};
+    private static final String[] secondArgs = new String[] {"add", "remove", "show"};
 
     @Override
     public String permission() {
@@ -53,7 +53,7 @@ public class AllowlistCommand extends Command {
 
     @Override
     public String usage() {
-        return "<add/remove> <player/uuid/ip>";
+        return "<add <player/uuid/ip> | remove <player/uuid/ip> | show [search]>";
     }
 
     @Override
@@ -70,6 +70,49 @@ public class AllowlistCommand extends Command {
     public String execute(CommandExecutor executor, String[] args) {
         if(args.length == 0 || Arrays.stream(secondArgs).noneMatch(arg -> arg.equalsIgnoreCase(args[0]))) {
             return "&cUsage: /antivpn allowlist " + usage();
+        }
+
+        if(args[0].equalsIgnoreCase("show")) {
+            String search = args.length > 1 ? args[1].toLowerCase() : null;
+            // Strip color code characters to prevent formatting injection in output
+            String safeSearch = search != null ? search.replace("&", "") : null;
+            boolean databaseEnabled = AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled();
+
+            List<UUID> uuids = databaseEnabled
+                    ? AntiVPN.getInstance().getDatabase().getAllWhitelisted()
+                    : new ArrayList<>(AntiVPN.getInstance().getExecutor().getWhitelisted());
+            List<CIDRUtils> ips = databaseEnabled
+                    ? AntiVPN.getInstance().getDatabase().getAllWhitelistedIps()
+                    : new ArrayList<>(AntiVPN.getInstance().getExecutor().getWhitelistedIps());
+
+            List<String> messages = new ArrayList<>();
+            messages.add("&8&m-----------------------------------------------------");
+            messages.add("&6&lAllowlist Entries" + (safeSearch != null ? " &7(search: &f" + safeSearch + "&7)" : ""));
+            messages.add("");
+
+            boolean any = false;
+            for (UUID uuid : uuids) {
+                String entry = uuid.toString();
+                if (search == null || entry.toLowerCase().contains(search)) {
+                    messages.add("&7- &fUUID: &e" + entry);
+                    any = true;
+                }
+            }
+            for (CIDRUtils cidr : ips) {
+                String entry = cidr.getCidr();
+                if (search == null || entry.toLowerCase().contains(search)) {
+                    messages.add("&7- &fIP: &e" + entry);
+                    any = true;
+                }
+            }
+
+            if (!any) {
+                messages.add(safeSearch != null
+                        ? "&cNo allowlist entries matching &f\"" + safeSearch + "&c\" were found."
+                        : "&cThe allowlist is empty.");
+            }
+            messages.add("&8&m-----------------------------------------------------");
+            return String.join("\n", messages);
         }
 
         if(args.length == 1)
@@ -201,10 +244,15 @@ public class AllowlistCommand extends Command {
             case 1 -> Arrays.stream(secondArgs)
                     .filter(narg -> narg.toLowerCase().startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
-            case 2 -> AntiVPN.getInstance().getPlayerExecutor().getOnlinePlayers().stream()
-                    .map(APIPlayer::getName)
-                    .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
-                    .collect(Collectors.toList());
+            case 2 -> {
+                if (args[0].equalsIgnoreCase("show")) {
+                    yield Collections.emptyList();
+                }
+                yield AntiVPN.getInstance().getPlayerExecutor().getOnlinePlayers().stream()
+                        .map(APIPlayer::getName)
+                        .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
+                        .collect(Collectors.toList());
+            }
             default -> Collections.emptyList();
         };
     }

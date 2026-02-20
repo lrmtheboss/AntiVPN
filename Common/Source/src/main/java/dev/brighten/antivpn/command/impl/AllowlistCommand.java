@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 
 public class AllowlistCommand extends Command {
 
-    private static final String[] secondArgs = new String[] {"add", "remove"};
+    private static final String[] secondArgs = new String[] {"add", "remove", "show", "search"};
 
     @Override
     public String permission() {
@@ -53,7 +53,7 @@ public class AllowlistCommand extends Command {
 
     @Override
     public String usage() {
-        return "<add/remove> <player/uuid/ip>";
+        return "<add <player/uuid/ip> | remove <player/uuid/ip> | show [page] | search <query> [page]>";
     }
 
     @Override
@@ -70,6 +70,89 @@ public class AllowlistCommand extends Command {
     public String execute(CommandExecutor executor, String[] args) {
         if(args.length == 0 || Arrays.stream(secondArgs).noneMatch(arg -> arg.equalsIgnoreCase(args[0]))) {
             return "&cUsage: /antivpn allowlist " + usage();
+        }
+
+        if(args[0].equalsIgnoreCase("show")) {
+            // args[1] = optional page number (defaults to 1)
+            int page = 1;
+            if (args.length > 1) {
+                try {
+                    page = Integer.parseInt(args[1]);
+                    if (page < 1) page = 1;
+                } catch (NumberFormatException e) {
+                    page = 1;
+                }
+            }
+
+            boolean databaseEnabled = AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled();
+
+            List<UUID> uuids = databaseEnabled
+                    ? AntiVPN.getInstance().getDatabase().getAllWhitelisted()
+                    : new ArrayList<>(AntiVPN.getInstance().getExecutor().getWhitelisted());
+            List<CIDRUtils> ips = databaseEnabled
+                    ? AntiVPN.getInstance().getDatabase().getAllWhitelistedIps()
+                    : new ArrayList<>(AntiVPN.getInstance().getExecutor().getWhitelistedIps());
+
+            List<String> entries = new ArrayList<>();
+            for (UUID uuid : uuids) {
+                entries.add("&7- &fUUID: &e" + uuid);
+            }
+            for (CIDRUtils cidr : ips) {
+                entries.add("&7- &fIP: &e" + cidr.getCidr());
+            }
+
+            return buildPage(entries, page, null, "show");
+        }
+
+        if(args[0].equalsIgnoreCase("search")) {
+            // args[1..n-1] = query terms; args[n] = optional page number if last arg is an integer
+            if (args.length < 2) {
+                return "&cUsage: /antivpn allowlist search <query> [page]";
+            }
+
+            // Detect optional trailing page number
+            int page = 1;
+            int queryEnd = args.length;
+            try {
+                int candidate = Integer.parseInt(args[args.length - 1]);
+                if (candidate >= 1 && args.length > 2) {
+                    page = candidate;
+                    queryEnd = args.length - 1;
+                }
+            } catch (NumberFormatException ignored) {}
+
+            String search = String.join(" ", Arrays.copyOfRange(args, 1, queryEnd)).toLowerCase();
+            // Strip color code characters to prevent formatting injection in output
+            String safeSearch = search.replace("&", "");
+
+            if (safeSearch.isEmpty()) {
+                return "&cUsage: /antivpn allowlist search <query> [page]";
+            }
+
+            boolean databaseEnabled = AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled();
+
+            List<UUID> uuids = databaseEnabled
+                    ? AntiVPN.getInstance().getDatabase().getAllWhitelisted()
+                    : new ArrayList<>(AntiVPN.getInstance().getExecutor().getWhitelisted());
+            List<CIDRUtils> ips = databaseEnabled
+                    ? AntiVPN.getInstance().getDatabase().getAllWhitelistedIps()
+                    : new ArrayList<>(AntiVPN.getInstance().getExecutor().getWhitelistedIps());
+
+            List<String> entries = new ArrayList<>();
+            for (UUID uuid : uuids) {
+                String entry = uuid.toString();
+                if (entry.toLowerCase().contains(search)) {
+                    entries.add("&7- &fUUID: &e" + entry);
+                }
+            }
+            for (CIDRUtils cidr : ips) {
+                String entry = cidr.getCidr();
+                if (entry.toLowerCase().contains(search)) {
+                    entries.add("&7- &fIP: &e" + entry);
+                }
+            }
+
+            return buildPage(entries, page, safeSearch, "search " + safeSearch);
         }
 
         if(args.length == 1)
@@ -201,11 +284,51 @@ public class AllowlistCommand extends Command {
             case 1 -> Arrays.stream(secondArgs)
                     .filter(narg -> narg.toLowerCase().startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
-            case 2 -> AntiVPN.getInstance().getPlayerExecutor().getOnlinePlayers().stream()
-                    .map(APIPlayer::getName)
-                    .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
-                    .collect(Collectors.toList());
+            case 2 -> {
+                if (args[0].equalsIgnoreCase("show") || args[0].equalsIgnoreCase("search")) {
+                    yield Collections.emptyList();
+                }
+                yield AntiVPN.getInstance().getPlayerExecutor().getOnlinePlayers().stream()
+                        .map(APIPlayer::getName)
+                        .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
+                        .collect(Collectors.toList());
+            }
             default -> Collections.emptyList();
         };
+    }
+
+    private String buildPage(List<String> entries, int page, String safeSearch, String subcommandPrefix) {
+        int pageSize = 10;
+        int totalPages = Math.max(1, (entries.size() + pageSize - 1) / pageSize);
+        if (page > totalPages) page = totalPages;
+
+        List<String> messages = new ArrayList<>();
+        messages.add("&8&m-----------------------------------------------------");
+        messages.add("&6&lAllowlist Entries &8(&7Page &f" + page + "&7/&f" + totalPages + "&8)"
+                + (safeSearch != null ? " &7(search: &f" + safeSearch + "&7)" : ""));
+        messages.add("");
+
+        if (entries.isEmpty()) {
+            messages.add(safeSearch != null
+                    ? "&cNo allowlist entries matching &f\"" + safeSearch + "&c\" were found."
+                    : "&cThe allowlist is empty.");
+        } else {
+            int start = (page - 1) * pageSize;
+            int end = Math.min(start + pageSize, entries.size());
+            for (int i = start; i < end; i++) {
+                messages.add(entries.get(i));
+            }
+            if (totalPages > 1) {
+                messages.add("");
+                if (page > 1) {
+                    messages.add("&7Previous page: &f/antivpn allowlist " + subcommandPrefix + " " + (page - 1));
+                }
+                if (page < totalPages) {
+                    messages.add("&7Next page: &f/antivpn allowlist " + subcommandPrefix + " " + (page + 1));
+                }
+            }
+        }
+        messages.add("&8&m-----------------------------------------------------");
+        return String.join("\n", messages);
     }
 }

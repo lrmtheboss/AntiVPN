@@ -20,7 +20,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import dev.brighten.antivpn.AntiVPN;
 import dev.brighten.antivpn.message.VpnString;
-import dev.brighten.antivpn.webhook.WebhookNotifier;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -93,7 +92,6 @@ public abstract class APIPlayer {
             if(cachedResult.response().getIp().equals(ip.getHostAddress())) {
                 AntiVPN.getInstance().getExecutor().log(Level.FINE, "Cached result for " + ip.getHostAddress() + " is " + cachedResult.resultType());
                 if(cachedResult.resultType().isShouldBlock()) {
-                    WebhookNotifier.sendWebhookNotification(this, cachedResult);
                     AntiVPN.getInstance().getExecutor().handleKickingOfPlayer(cachedResult, this);
                 }
                 onResult.accept(cachedResult);
@@ -137,7 +135,6 @@ public abstract class APIPlayer {
 
                     checkResultCache.put(ip.getHostAddress(), new CheckResult(checkResult.response(), checkResult.resultType(), true));
                     if(checkResult.resultType().isShouldBlock()) {
-                        WebhookNotifier.sendWebhookNotification(this, checkResult);
                         AntiVPN.getInstance().getExecutor().handleKickingOfPlayer(checkResult, this);
                     }
                     onResult.accept(checkResult);

@@ -76,7 +76,6 @@ public abstract class VPNExecutor {
     }
 
     public void handleKickingOfPlayer(CheckResult result, APIPlayer player) {
-        // Send webhook notification if enabled
 
         //Ensuring kick task is always running
         if(kickTask == null || kickTask.isDone() || kickTask.isCancelled()) {

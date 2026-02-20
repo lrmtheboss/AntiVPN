@@ -46,6 +46,11 @@ webhooks:
   enabled: false
   # The webhook URL to send POST requests to when a VPN is detected
   url: ''
+  # Webhook format type: 'discord', 'slack', or 'generic'
+  # - discord: Formats payload for Discord webhooks with rich embeds
+  # - slack: Formats payload for Slack webhooks
+  # - generic: Sends raw JSON payload (for custom integrations)
+  format: 'discord'
   # Optional: Set to true to include authentication header (Authorization: Bearer <token>)
   useAuthentication: false
   # The authentication token to use when useAuthentication is true

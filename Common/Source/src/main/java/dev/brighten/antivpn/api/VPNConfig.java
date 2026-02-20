@@ -45,10 +45,9 @@ public class VPNConfig {
             defaultAlertMsg = new ConfigDefault<>("&8[&6KauriVPN&8] &e%player% &7has joined on a VPN/proxy" +
                     " &8(&f%reason%&8) &7in location &8(&f%city%&7, &f%country%&8)", "alerts.message",
                     AntiVPN.getInstance()),
-            defaultWebhookUrl = new ConfigDefault<>("", "webhooks.url",
-                    AntiVPN.getInstance()),
-            defaultWebhookAuthToken = new ConfigDefault<>("", "webhooks.authToken",
-                    AntiVPN.getInstance());
+            defaultWebhookUrl = new ConfigDefault<>("", "webhooks.url", AntiVPN.getInstance()),
+            defaultWebhookAuthToken = new ConfigDefault<>("", "webhooks.authToken", AntiVPN.getInstance()),
+            defaultWebhookFormat = new ConfigDefault<>("discord", "webhooks.format", AntiVPN.getInstance());
     private final ConfigDefault<Boolean> cacheResultsDefault = new ConfigDefault<>(true,
             "cachedResults", AntiVPN.getInstance()),
             defaultUseCredentials = new ConfigDefault<>(true,
@@ -62,14 +61,11 @@ public class VPNConfig {
             defaultWhitelistCountries = new ConfigDefault<>(true, "countries.whitelist",
                     AntiVPN.getInstance()),
             defaultMetrics = new ConfigDefault<>(true, "bstats", AntiVPN.getInstance()),
-            defaultWebhookEnabled = new ConfigDefault<>(false, "webhooks.enabled",
-                    AntiVPN.getInstance()),
-            defaultWebhookUseAuth = new ConfigDefault<>(false, "webhooks.useAuthentication",
-                    AntiVPN.getInstance());
+            defaultWebhookEnabled = new ConfigDefault<>(false, "webhooks.enabled", AntiVPN.getInstance()),
+            defaultWebhookUseAuth = new ConfigDefault<>(false, "webhooks.useAuthentication", AntiVPN.getInstance());
     private final ConfigDefault<Integer>
             defaultPort = new ConfigDefault<>(-1, "database.port", AntiVPN.getInstance()),
-            defaultWebhookTimeout = new ConfigDefault<>(5, "webhooks.timeout",
-                    AntiVPN.getInstance());
+            defaultWebhookTimeout = new ConfigDefault<>(5, "webhooks.timeout", AntiVPN.getInstance());
     private final ConfigDefault<List<String>> prefixWhitelistsDefault = new ConfigDefault<>(new ArrayList<>(),
             "prefixWhitelists", AntiVPN.getInstance()), defaultCommands = new ConfigDefault<>(
             Collections.singletonList("kick %player% VPNs are not allowed on our server!"), "commands.execute",
@@ -79,23 +75,6 @@ public class VPNConfig {
             defCountrylist = new ConfigDefault<>(new ArrayList<>(), "countries.list",
                     AntiVPN.getInstance());
 
-    private String license, kickMessage, databaseType, databaseName, mongoURL, username, password, ip, alertMsg,
-            countryVanillaKickReason, webhookUrl, webhookAuthToken;
-    private List<String> prefixWhitelists, commands, countryList, countryKickCommands;
-    private int port, webhookTimeout;
-    private boolean cacheResults, databaseEnabled, useCredentials, commandsEnabled, kickPlayers, alertToStaff,
-            metrics, whitelistCountries, webhookEnabled, webhookUseAuth;
-
-    /**
-     * License from https://funkemunky.cc/shop to be used for more queries.
-     * @return String
-     */
-    public String getLicense() {
-        return license;
-    }
-
-    /**
-     * If true, results will be cached to reduce queries to https://funkemunky.cc
     @Getter
     private String license;
     @Getter
@@ -133,6 +112,18 @@ public class VPNConfig {
     private boolean alertToStaff;
     private boolean metrics;
     private boolean whitelistCountries;
+    @Getter
+    private String webhookUrl;
+    @Getter
+    private String webhookAuthToken;
+    @Getter
+    private String webhookFormat;
+    @Getter
+    private boolean webhookEnabled;
+    @Getter
+    private boolean webhookUseAuth;
+    @Getter
+    private int webhookTimeout;
 
     /**
      * If true, results will be cached to reduce queries to <a href="https://funkemunky.cc">...</a>
@@ -221,48 +212,6 @@ public class VPNConfig {
     }
 
     /**
-     * If true, webhook notifications will be sent when a VPN is detected.
-     * @return boolean
-     */
-    public boolean webhookEnabled() {
-        return webhookEnabled;
-    }
-
-    /**
-     * The webhook URL to send POST requests to when a VPN is detected.
-     * @return String
-     */
-    public String webhookUrl() {
-        return webhookUrl;
-    }
-
-    /**
-     * If true, an authentication header will be included in webhook requests.
-     * @return boolean
-     */
-    public boolean webhookUseAuth() {
-        return webhookUseAuth;
-    }
-
-    /**
-     * The authentication token to use for webhook requests.
-     * Note: Token is stored in memory as plaintext. Ensure proper file system
-     * permissions are set on config.yml to protect sensitive authentication tokens.
-     * @return String
-     */
-    public String webhookAuthToken() {
-        return webhookAuthToken;
-    }
-
-    /**
-     * The timeout in seconds for webhook requests.
-     * @return int
-     */
-    public int webhookTimeout() {
-        return webhookTimeout;
-    }
-
-    /**
      * Grabs all information from the config.yml
      */
     public void update() {
@@ -294,6 +243,7 @@ public class VPNConfig {
         webhookUseAuth = defaultWebhookUseAuth.get();
         webhookAuthToken = defaultWebhookAuthToken.get();
         webhookTimeout = defaultWebhookTimeout.get();
+        webhookFormat = defaultWebhookFormat.get();
     }
 
 }

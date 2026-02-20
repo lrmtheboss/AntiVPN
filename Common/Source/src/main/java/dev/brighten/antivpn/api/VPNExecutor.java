@@ -80,8 +80,6 @@ public abstract class VPNExecutor {
         // Send webhook notification if enabled
         WebhookNotifier.sendWebhookNotification(player, result);
 
-        if (AntiVPN.getInstance().getVpnConfig().alertToStaff()) AntiVPN.getInstance().getPlayerExecutor()
-
         //Ensuring kick task is always running
         if(kickTask == null || kickTask.isDone() || kickTask.isCancelled()) {
             startKickChecks();

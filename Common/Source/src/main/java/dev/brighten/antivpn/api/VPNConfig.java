@@ -1,7 +1,24 @@
+/*
+ * Copyright 2026 Dawson Hessler
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package dev.brighten.antivpn.api;
 
 import dev.brighten.antivpn.AntiVPN;
 import dev.brighten.antivpn.utils.ConfigDefault;
+import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -79,6 +96,46 @@ public class VPNConfig {
 
     /**
      * If true, results will be cached to reduce queries to https://funkemunky.cc
+    @Getter
+    private String license;
+    @Getter
+    private String kickMessage;
+    @Getter
+    private String databaseType;
+    @Getter
+    private String databaseName;
+    private String mongoURL;
+    @Getter
+    private String username;
+    @Getter
+    private String password;
+    @Getter
+    private String ip;
+    @Getter
+    private String alertMsg;
+    @Getter
+    private String countryVanillaKickReason;
+    @Getter
+    private List<String> prefixWhitelists;
+    private List<String> commands;
+    @Getter
+    private List<String> countryList;
+    private List<String> countryKickCommands;
+    private int port;
+    private boolean cacheResults;
+    @Getter
+    private boolean databaseEnabled;
+    private boolean useCredentials;
+    @Getter
+    private boolean commandsEnabled;
+    @Getter
+    private boolean kickPlayers;
+    private boolean alertToStaff;
+    private boolean metrics;
+    private boolean whitelistCountries;
+
+    /**
+     * If true, results will be cached to reduce queries to <a href="https://funkemunky.cc">...</a>
      * @return boolean
      */
     public boolean cachedResults() {
@@ -86,35 +143,11 @@ public class VPNConfig {
     }
 
     /**
-     * Will be used for vanilla kick message when {@link VPNConfig#runCommands()} is true.
-     * @return String
-     */
-    public String getKickString() {
-        return kickMessage;
-    }
-
-    /**
-     * Message to send staff on proxy detection.
-     * @return String
-     */
-    public String alertMessage() {
-        return alertMsg;
-    }
-
-    /**
      * If true, staff will be alerted on proxy detection.
      * @return boolean
      */
-    public boolean alertToStaff() {
+    public boolean isAlertToSTaff() {
         return alertToStaff;
-    }
-
-    /**
-     * If true, will run {@link VPNConfig#commands()} on detect. If not, it will use vanilla kicking methods.
-     * @return boolean
-     */
-    public boolean runCommands() {
-        return commandsEnabled;
     }
 
     /**
@@ -123,31 +156,6 @@ public class VPNConfig {
      */
     public List<String> commands() {
         return commands;
-    }
-
-    /**
-     * If false, no commands nor kick will be run on proxy detection.
-     * @return boolean
-     */
-    public boolean kickPlayersOnDetect() {
-        return kickPlayers;
-    }
-
-    /**
-     * Returns Strings of which are checked against the beginning of player names. Used to
-     * allow Geyser-connected players to join.
-     * @return List
-     */
-    public List<String> getPrefixWhitelists() {
-        return prefixWhitelists;
-    }
-
-    /**
-     * Returns true if we want to use a database
-     * @return boolean
-     */
-    public boolean isDatabaseEnabled() {
-        return databaseEnabled;
     }
 
     /**
@@ -167,58 +175,10 @@ public class VPNConfig {
     }
 
     /**
-     * Database type. Either MySQL and Mongo.
-     * @return String
-     */
-    public String getDatabaseType() {
-        return databaseType;
-    }
-
-    /**
-     * Database name
-     * @return String
-     */
-    public String getDatabaseName() {
-        return databaseName;
-    }
-
-    /**
-     * Database username
-     * @return String
-     */
-    public String getUsername() {
-        return username;
-    }
-
-    /**
-     * Database Password
-     * @return String
-     */
-    public String getPassword() {
-        return password;
-    }
-
-    /**
-     * Database IP
-     * @return String
-     */
-    public String getIp() {
-        return ip;
-    }
-
-    /**
-     * Returns the list of ISO country codes we need to check.
-     * @return List
-     */
-    public List<String> countryList() {
-        return countryList;
-    }
-
-    /**
      * If true, we only allow the {@link VPNConfig#countryKickCommands()}. If false, we blacklist them.
      * @return boolean
      */
-    public boolean whitelistCountries() {
+    public boolean getWhitelistCountries() {
         return whitelistCountries;
     }
 
@@ -228,14 +188,6 @@ public class VPNConfig {
      */
     public List<String> countryKickCommands() {
         return countryKickCommands;
-    }
-
-    /**
-     * Returns the vanilla kick reason for bad country locations
-     * @return String
-     */
-    public String countryVanillaKickReason() {
-        return countryVanillaKickReason;
     }
 
     /**
@@ -261,7 +213,7 @@ public class VPNConfig {
 
 
     /**
-     * If true, https://bstats.org metrics will be collected to improve KauriVPN.
+     * If true, <a href="https://bstats.org">...</a> metrics will be collected to improve KauriVPN.
      * @return boolean
      */
     public boolean metrics() {

@@ -1,12 +1,27 @@
+/*
+ * Copyright 2026 Dawson Hessler
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package dev.brighten.antivpn.bungee;
 
 import dev.brighten.antivpn.AntiVPN;
 import dev.brighten.antivpn.api.*;
 import dev.brighten.antivpn.utils.MiscUtils;
 import dev.brighten.antivpn.utils.StringUtil;
-import dev.brighten.antivpn.utils.Tuple;
-import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.event.LoginEvent;
 import net.md_5.bungee.api.event.PlayerDisconnectEvent;
 import net.md_5.bungee.api.event.PreLoginEvent;
 import net.md_5.bungee.api.plugin.Listener;
@@ -35,7 +50,7 @@ public class BungeeListener extends VPNExecutor implements Listener {
 
     @Override
     public void log(String log, Object... objects) {
-        log(Level.INFO, String.format(log, objects));
+        log(Level.INFO, log, objects);
     }
 
     @Override
@@ -73,43 +88,31 @@ public class BungeeListener extends VPNExecutor implements Listener {
                             ((InetSocketAddress) event.getConnection().getSocketAddress()).getAddress());
                 });
 
-        CheckResult instantResult = player.checkPlayer(result -> {
+        player.checkPlayer(result -> {
             if (!result.resultType().isShouldBlock()) return;
-            AntiVPN.getInstance().getExecutor().getToKick()
-                    .add(new Tuple<>(result, player.getUuid()));
+
+            if(!AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
+                return;
+            }
+
+            event.setCancelled(true);
+            event.setReason(TextComponent.fromLegacy(StringUtil.varReplace(switch (result.resultType()) {
+                case DENIED_PROXY -> StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
+                        .getKickMessage(), player, result.response());
+                case DENIED_COUNTRY -> StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
+                        .getCountryVanillaKickReason(), player, result.response());
+                default -> "You were kicked by KauriVPN for an unknown reason!";
+            }, player, result.response())));
         });
+    }
 
-        if (!instantResult.resultType().isShouldBlock()) {
-            return;
-        }
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onJoin(LoginEvent event) {
+        if(event.isCancelled()) return;
 
-        AntiVPN.getInstance().getExecutor().getToKick()
-                .add(new Tuple<>(instantResult, player.getUuid()));
-
-        if (!AntiVPN.getInstance().getVpnConfig().kickPlayersOnDetect()) {
-            return;
-        }
-
-        event.setCancelled(true);
-        AntiVPN.getInstance().getExecutor().log(Level.INFO,
-                "%s was kicked from pre-login proxy cache.",
-                event.getConnection().getName());
-
-
-        switch (instantResult.resultType()) {
-            case DENIED_PROXY -> event.setReason(TextComponent.fromLegacy(ChatColor
-                    .translateAlternateColorCodes('&',
-                            StringUtil.varReplace(
-                                    AntiVPN.getInstance().getVpnConfig().getKickString(),
-                                    player,
-                                    instantResult.response()))));
-            case DENIED_COUNTRY -> event.setReason(TextComponent.fromLegacy(ChatColor
-                    .translateAlternateColorCodes('&',
-                            StringUtil.varReplace(
-                                    AntiVPN.getInstance().getVpnConfig().countryVanillaKickReason(),
-                                    player,
-                                    instantResult.response()))));
-        }
+        // Handling player alerts on join
+        AntiVPN.getInstance().getPlayerExecutor().getPlayer(event.getConnection().getUniqueId())
+                .ifPresent(APIPlayer::checkAlertsState);
     }
 
     @EventHandler

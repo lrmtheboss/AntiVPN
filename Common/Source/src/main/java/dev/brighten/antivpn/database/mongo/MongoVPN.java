@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Dawson Hessler
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package dev.brighten.antivpn.database.mongo;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -8,23 +24,28 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.UpdateOptions;
 import dev.brighten.antivpn.AntiVPN;
-import dev.brighten.antivpn.api.VPNExecutor;
 import dev.brighten.antivpn.database.VPNDatabase;
+import dev.brighten.antivpn.database.version.Version;
+import dev.brighten.antivpn.utils.CIDRUtils;
 import dev.brighten.antivpn.web.objects.VPNResponse;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.bson.types.Decimal128;
 
+import java.math.BigDecimal;
+import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class MongoVPN implements VPNDatabase {
 
-    private MongoCollection<Document> settingsDocument, cacheDocument;
+    public MongoCollection<Document> settingsDocument;
+    MongoCollection<Document> cacheDocument;
     private MongoClient client;
+    public MongoDatabase antivpnDatabase;
 
     private final Cache<String, VPNResponse> cachedResponses = Caffeine.newBuilder()
             .expireAfterWrite(20, TimeUnit.MINUTES)
@@ -32,7 +53,7 @@ public class MongoVPN implements VPNDatabase {
             .build();
 
     public MongoVPN() {
-        VPNExecutor.threadExecutor.scheduleAtFixedRate(() -> {
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().scheduleAtFixedRate(() -> {
             if(!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled()) return;
 
             //Refreshing whitelisted players
@@ -55,7 +76,7 @@ public class MongoVPN implements VPNDatabase {
                 long lastUpdate = rdoc.get("lastAccess", 0L);
 
                 if(System.currentTimeMillis() - lastUpdate > TimeUnit.HOURS.toMillis(1)) {
-                    VPNExecutor.threadExecutor.execute(() -> deleteResponse(ip));
+                    AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> deleteResponse(ip));
                     return null;
                 }
 
@@ -83,29 +104,31 @@ public class MongoVPN implements VPNDatabase {
 
     @Override
     public void cacheResponse(VPNResponse toCache) {
-        Document rdoc = new Document("ip", toCache.getIp());
+        if(AntiVPN.getInstance().getVpnConfig().cachedResults()) {
+            Document rdoc = new Document("ip", toCache.getIp());
 
-        rdoc.put("asn", toCache.getAsn());
-        rdoc.put("countryName", toCache.getCountryName());
-        rdoc.put("countryCode", toCache.getCountryCode());
-        rdoc.put("city", toCache.getCity());
-        rdoc.put("isp", toCache.getIsp());
-        rdoc.put("method", toCache.getMethod());
-        rdoc.put("timeZone", toCache.getTimeZone());
-        rdoc.put("proxy", toCache.isProxy());
-        rdoc.put("cached", toCache.isCached());
-        rdoc.put("success", toCache.isSuccess());
-        rdoc.put("latitude", toCache.getLatitude());
-        rdoc.put("longitude", toCache.getLongitude());
-        rdoc.put("lastAccess", System.currentTimeMillis());
+            rdoc.put("asn", toCache.getAsn());
+            rdoc.put("countryName", toCache.getCountryName());
+            rdoc.put("countryCode", toCache.getCountryCode());
+            rdoc.put("city", toCache.getCity());
+            rdoc.put("isp", toCache.getIsp());
+            rdoc.put("method", toCache.getMethod());
+            rdoc.put("timeZone", toCache.getTimeZone());
+            rdoc.put("proxy", toCache.isProxy());
+            rdoc.put("cached", toCache.isCached());
+            rdoc.put("success", toCache.isSuccess());
+            rdoc.put("latitude", toCache.getLatitude());
+            rdoc.put("longitude", toCache.getLongitude());
+            rdoc.put("lastAccess", System.currentTimeMillis());
 
-        cachedResponses.put(toCache.getIp(), toCache);
+            cachedResponses.put(toCache.getIp(), toCache);
 
-        VPNExecutor.threadExecutor.execute(() -> {
-            Bson update = new Document("$set", rdoc);
-            cacheDocument.updateOne(Filters.eq("ip", toCache.getIp()), update,
-                    new UpdateOptions().upsert(true));
-        });
+            AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> {
+                Bson update = new Document("$set", rdoc);
+                cacheDocument.updateOne(Filters.eq("ip", toCache.getIp()), update,
+                        new UpdateOptions().upsert(true));
+            });
+        }
     }
 
     @Override
@@ -121,42 +144,57 @@ public class MongoVPN implements VPNDatabase {
     }
 
     @Override
-    public boolean isWhitelisted(String ip) {
-        return settingsDocument
-                .find(Filters.and(Filters.eq("setting", "whitelist"),
-                        Filters.eq("ip", ip))).first() != null;
-    }
-
-    @Override
-    public void setWhitelisted(UUID uuid, boolean whitelisted) {
-        if(whitelisted) {
-            Document wdoc = new Document("setting", "whitelist");
-            wdoc.put("uuid", uuid.toString());
-            AntiVPN.getInstance().getExecutor().getWhitelisted().add(uuid);
-            VPNExecutor.threadExecutor.execute(() -> settingsDocument.insertOne(wdoc));
-        } else {
-            AntiVPN.getInstance().getExecutor().getWhitelisted().remove(uuid);
-            VPNExecutor.threadExecutor.execute(() -> settingsDocument.deleteMany(Filters
-                    .and(
-                            Filters.eq("setting", "whitelist"),
-                            Filters.eq("uuid", uuid.toString()))));
+    public boolean isWhitelisted(String cidr) {
+        try {
+            return isWhitelisted(new CIDRUtils(cidr));
+        } catch (UnknownHostException e) {
+            AntiVPN.getInstance().getExecutor().log("Failed to check whitelist for IP: " + cidr, e);
+            return false;
         }
     }
 
     @Override
-    public void setWhitelisted(String ip, boolean whitelisted) {
-        if(whitelisted) {
-            Document wdoc = new Document("setting", "whitelist").append("ip", ip);
+    public boolean isWhitelisted(CIDRUtils cidr) {
+        var start =  new Decimal128(new BigDecimal(cidr.getStartIpInt()));
+        var end = new Decimal128(new BigDecimal(cidr.getEndIpInt()));
+        return settingsDocument.find(Filters.and(Filters.eq("setting", "whitelist"),
+                Filters.lte("ip_start", start), Filters.gte("ip_end", end))).first() != null;
+    }
 
-            AntiVPN.getInstance().getExecutor().getWhitelistedIps().add(ip);
-            VPNExecutor.threadExecutor.execute(() -> settingsDocument.insertOne(wdoc));
-        } else {
-            AntiVPN.getInstance().getExecutor().getWhitelistedIps().remove(ip);
-            VPNExecutor.threadExecutor.execute(() -> settingsDocument.deleteMany(Filters
-                    .and(
-                            Filters.eq("setting", "whitelist"),
-                            Filters.eq("ip", ip))));
-        }
+    @Override
+    public void addWhitelist(UUID uuid) {
+        Document wdoc = new Document("setting", "whitelist");
+        wdoc.put("uuid", uuid.toString());
+        AntiVPN.getInstance().getExecutor().getWhitelisted().add(uuid);
+        settingsDocument.insertOne(wdoc);
+    }
+
+    @Override
+    public void removeWhitelist(UUID uuid) {
+        AntiVPN.getInstance().getExecutor().getWhitelisted().remove(uuid);
+        settingsDocument.deleteMany(Filters
+                .and(
+                        Filters.eq("setting", "whitelist"),
+                        Filters.eq("uuid", uuid.toString())));
+    }
+
+    @Override
+    public void addWhitelist(CIDRUtils cidr) {
+        Document doc = new Document("setting", "whitelist");
+        doc.append("ip_start", new Decimal128(new BigDecimal(cidr.getStartIpInt())));
+        doc.append("ip_end", new Decimal128(new BigDecimal(cidr.getEndIpInt())));
+        doc.append("cidr_string", cidr.toString());
+
+        settingsDocument.insertOne(doc);
+    }
+
+    @Override
+    public void removeWhitelist(CIDRUtils cidr) {
+        settingsDocument.deleteMany(Filters
+                .and(
+                        Filters.eq("setting", "whitelist"),
+                        Filters.eq("ip_start", new Decimal128(new BigDecimal(cidr.getStartIpInt()))),
+                        Filters.eq("ip_end", new Decimal128(new BigDecimal(cidr.getEndIpInt())))));
     }
 
     @Override
@@ -169,39 +207,30 @@ public class MongoVPN implements VPNDatabase {
     }
 
     @Override
-    public List<String> getAllWhitelistedIps() {
-        List<String> ips = new ArrayList<>();
+    public List<CIDRUtils> getAllWhitelistedIps() {
+        List<CIDRUtils> ips = new ArrayList<>();
         settingsDocument.find(Filters.and(Filters.eq("setting", "whitelist"),
-                        Filters.exists("ip")))
-                .forEach((Consumer<? super Document>) doc -> ips.add(doc.getString("ip")));
+                        Filters.exists("ip"))).forEach((Consumer<? super Document>) doc -> {
+                    try {
+                        var cidr = new CIDRUtils(doc.getString("cidr_string"));
+                        ips.add(cidr);
+                    } catch (UnknownHostException e) {
+                        AntiVPN.getInstance().getExecutor().logException("Could not format ip " + doc.getString("cidr_string") + " into a CIDR!", e);
+                    }
+                });
         return ips;
     }
 
     @Override
-    public void getStoredResponseAsync(String ip, Consumer<Optional<VPNResponse>> result) {
-        VPNExecutor.threadExecutor.execute(() -> result.accept(getStoredResponse(ip)));
-    }
-
-    @Override
-    public void isWhitelistedAsync(UUID uuid, Consumer<Boolean> result) {
-        VPNExecutor.threadExecutor.execute(() -> result.accept(isWhitelisted(uuid)));
-    }
-
-    @Override
-    public void isWhitelistedAsync(String ip, Consumer<Boolean> result) {
-        VPNExecutor.threadExecutor.execute(() -> result.accept(isWhitelisted(ip)));
-    }
-
-    @Override
     public void alertsState(UUID uuid, Consumer<Boolean> result) {
-        VPNExecutor.threadExecutor.execute(() -> result.accept(settingsDocument
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> result.accept(settingsDocument
                 .find(Filters.and(Filters.eq("setting", "alerts"),
                 Filters.eq("uuid", uuid.toString()))).first() != null));
     }
 
     @Override
     public void updateAlertsState(UUID uuid, boolean state) {
-        VPNExecutor.threadExecutor.execute(() -> {
+        AntiVPN.getInstance().getExecutor().getThreadExecutor().execute(() -> {
             settingsDocument.deleteMany(Filters.and(Filters.eq("setting", "alerts"),
                     Filters.eq("uuid", uuid.toString())));
             if(state) {
@@ -241,14 +270,17 @@ public class MongoVPN implements VPNDatabase {
 
             client = MongoClients.create(settingsBld.build());
         }
-        MongoDatabase antivpnDatabase = client.getDatabase(AntiVPN.getInstance().getVpnConfig().getDatabaseName());
+        antivpnDatabase = client.getDatabase(AntiVPN.getInstance().getVpnConfig().getDatabaseName());
 
         settingsDocument = antivpnDatabase.getCollection("settings");
-        if(settingsDocument.listIndexes().first() == null) {
-            AntiVPN.getInstance().getExecutor().log("Created index for settings collection!");
-            settingsDocument.createIndex(Indexes.ascending("ip"));
-        }
+
         cacheDocument = antivpnDatabase.getCollection("cache");
+
+        for (Version<MongoVPN> mongoDbVersion : Version.mongoDbVersions) {
+            if(mongoDbVersion.needsUpdate(this)) {
+                mongoDbVersion.update(this);
+            }
+        }
     }
 
     @Override

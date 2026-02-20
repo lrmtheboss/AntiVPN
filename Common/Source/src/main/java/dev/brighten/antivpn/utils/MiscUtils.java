@@ -72,18 +72,6 @@ public class MiscUtils {
         };
     }
 
-    public static UUID formatFromMojangUUID(String mojangUUID) {
-        StringBuilder uuid = new StringBuilder();
-        for(int i = 0; i <= 31; i++) {
-            uuid.append(mojangUUID.charAt(i));
-            if(i == 7 || i == 11 || i == 15 || i == 19) {
-                uuid.append("-");
-            }
-        }
-
-        return UUID.fromString(uuid.toString());
-    }
-
     public static UUID lookupUUID(String playername) {
         try {
             JSONObject object = JsonReader
@@ -93,12 +81,26 @@ public class MiscUtils {
                 return UUID.fromString(object.getString("uuid"));
             }
         } catch (IOException | JSONException e) {
-            AntiVPN.getInstance().getExecutor().logException("Error while looking up UUID for " + playername, e);
+            AntiVPN.getInstance().getExecutor().logException("Error while looking up UUID for " + playername + "! Falling back to Mojang API", e);
+            return lookupMojangUuid(playername);
         }
 
         return null;
     }
 
+    private static UUID lookupMojangUuid(String playerName) {
+        try {
+            JSONObject object = JsonReader.readJsonFromUrl("https://api.mojang.com/users/profiles/minecraft/" + playerName);
+
+            if(object.has("id")) {
+                return UUID.fromString(object.getString("id"));
+            }
+        } catch (IOException | JSONException e) {
+            AntiVPN.getInstance().getExecutor().logException("Error while looking up UUID for " + playerName + " from Mojang!:", e);
+        }
+
+        return null;
+    }
     public static boolean isIpv4(String ip)
     {
         return ipv4.matcher(ip).matches();

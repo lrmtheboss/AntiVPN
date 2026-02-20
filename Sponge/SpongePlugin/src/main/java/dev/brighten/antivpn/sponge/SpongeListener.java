@@ -1,9 +1,24 @@
+/*
+ * Copyright 2026 Dawson Hessler
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package dev.brighten.antivpn.sponge;
 
 import dev.brighten.antivpn.AntiVPN;
 import dev.brighten.antivpn.api.*;
-import dev.brighten.antivpn.sponge.util.StringUtil;
-import dev.brighten.antivpn.utils.Tuple;
+import dev.brighten.antivpn.utils.StringUtil;
 import net.kyori.adventure.text.Component;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.exception.CommandException;
@@ -26,44 +41,22 @@ public class SpongeListener extends VPNExecutor {
                         event.connection().address().getAddress()
                 )));
 
-        CheckResult instantResult = player.get().checkPlayer(result -> {
-            if(result.resultType().isShouldBlock()) {
-                AntiVPN.getInstance().getExecutor().getToKick().add(new Tuple<>(result, player.get().getUuid()));
+        player.get().checkPlayer(result -> {
+            if(!result.resultType().isShouldBlock()) return;
+
+            if(!AntiVPN.getInstance().getVpnConfig().isKickPlayers()) {
+                return;
             }
+
+            event.setCancelled(true);
+            event.setMessage(Component.text(switch (result.resultType()) {
+                case DENIED_PROXY -> StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
+                        .getKickMessage(), player.get(), result.response());
+                case DENIED_COUNTRY -> StringUtil.varReplace(AntiVPN.getInstance().getVpnConfig()
+                        .getCountryVanillaKickReason(), player.get(), result.response());
+                default -> "You were kicked by KauriVPN for an unknown reason!";
+            }));
         });
-
-        if(!instantResult.resultType().isShouldBlock()) {
-            return;
-        }
-
-        AntiVPN.getInstance().getExecutor().getToKick().add(new Tuple<>(instantResult, player.get().getUuid()));
-
-        if(!AntiVPN.getInstance().getVpnConfig().kickPlayersOnDetect()) {
-            return;
-        }
-
-        AntiVPN.getInstance().getExecutor().log(Level.INFO, "%s was kicked from cache with IP %s", player.get().getName(), instantResult.response().getIp());
-
-        event.setCancelled(true);
-        switch (instantResult.resultType()) {
-            case DENIED_PROXY -> {
-                AntiVPN.getInstance().getExecutor().log(Level.INFO, player.get().getName()
-                        + " joined on a VPN/Proxy (" + instantResult.response().getMethod() + ")");
-                event.setMessage(Component.text(StringUtil
-                        .translateColorCodes('&', AntiVPN.getInstance().getVpnConfig()
-                                .getKickString()
-                                .replace("%player%", player.get().getName())
-                                .replace("%country%", instantResult.response().getCountryName())
-                                .replace("%code%", instantResult.response().getCountryCode()))));
-            }
-            case DENIED_COUNTRY ->
-                    event.setMessage(Component.text(StringUtil
-                            .translateColorCodes('&', AntiVPN.getInstance().getVpnConfig()
-                                    .countryVanillaKickReason()
-                                    .replace("%player%", player.get().getName())
-                                    .replace("%country%", instantResult.response().getCountryName())
-                                    .replace("%code%", instantResult.response().getCountryCode()))));
-        }
     }
 
     @Listener
@@ -90,7 +83,7 @@ public class SpongeListener extends VPNExecutor {
 
     @Override
     public void log(String log, Object... objects) {
-        log(Level.INFO, String.format(log, objects));
+        log(Level.INFO, log, objects);
     }
 
     @Override

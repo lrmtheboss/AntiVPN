@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Dawson Hessler
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package dev.brighten.antivpn.utils;
 
 import dev.brighten.antivpn.AntiVPN;
@@ -56,18 +72,6 @@ public class MiscUtils {
         };
     }
 
-    public static UUID formatFromMojangUUID(String mojangUUID) {
-        StringBuilder uuid = new StringBuilder();
-        for(int i = 0; i <= 31; i++) {
-            uuid.append(mojangUUID.charAt(i));
-            if(i == 7 || i == 11 || i == 15 || i == 19) {
-                uuid.append("-");
-            }
-        }
-
-        return UUID.fromString(uuid.toString());
-    }
-
     public static UUID lookupUUID(String playername) {
         try {
             JSONObject object = JsonReader
@@ -77,12 +81,26 @@ public class MiscUtils {
                 return UUID.fromString(object.getString("uuid"));
             }
         } catch (IOException | JSONException e) {
-            AntiVPN.getInstance().getExecutor().logException("Error while looking up UUID for " + playername, e);
+            AntiVPN.getInstance().getExecutor().logException("Error while looking up UUID for " + playername + "! Falling back to Mojang API", e);
+            return lookupMojangUuid(playername);
         }
 
         return null;
     }
 
+    private static UUID lookupMojangUuid(String playerName) {
+        try {
+            JSONObject object = JsonReader.readJsonFromUrl("https://api.mojang.com/users/profiles/minecraft/" + playerName);
+
+            if(object.has("id")) {
+                return UUID.fromString(object.getString("id"));
+            }
+        } catch (IOException | JSONException e) {
+            AntiVPN.getInstance().getExecutor().logException("Error while looking up UUID for " + playerName + " from Mojang!:", e);
+        }
+
+        return null;
+    }
     public static boolean isIpv4(String ip)
     {
         return ipv4.matcher(ip).matches();

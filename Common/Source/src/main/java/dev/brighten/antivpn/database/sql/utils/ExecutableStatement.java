@@ -1,53 +1,51 @@
+/*
+ * Copyright 2026 Dawson Hessler
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package dev.brighten.antivpn.database.sql.utils;
 
-import dev.brighten.antivpn.utils.MiscUtils;
+import lombok.Getter;
 import lombok.SneakyThrows;
 
 import java.sql.*;
 import java.util.UUID;
 
-public class ExecutableStatement {
-    private PreparedStatement statement;
+public class ExecutableStatement implements AutoCloseable {
+    @Getter
+    private final PreparedStatement statement;
     private int pos = 1;
 
     public ExecutableStatement(PreparedStatement statement) {
         this.statement = statement;
     }
 
-    @SneakyThrows
-    public Integer execute() {
-        try {
-            return statement.executeUpdate();
-        } finally {
-            MiscUtils.close(statement);
-        }
+    public int execute() throws SQLException {
+        return statement.executeUpdate();
     }
 
-    @SneakyThrows
-    public void execute(ResultSetIterator iterator) {
-        ResultSet rs = null;
-        try {
-            rs = statement.executeQuery();
+    public void execute(ResultSetIterator iterator) throws SQLException {
+        try(var rs = statement.executeQuery()) {
             while (rs.next()) iterator.next(rs);
-        } finally {
-            MiscUtils.close(statement, rs);
         }
     }
 
-    @SneakyThrows
-    public void executeSingle(ResultSetIterator iterator) {
-        ResultSet rs = null;
-        try {
-            rs = statement.executeQuery();
-            if (rs.next()) iterator.next(rs);
-            else iterator.next(null);
-        } finally {
-            MiscUtils.close(statement, rs);
-        }
+    public int[] executeBatch() throws SQLException {
+        return statement.executeBatch();
     }
 
-    @SneakyThrows
-    public ResultSet executeQuery() {
+    public ResultSet executeQuery() throws SQLException {
         return statement.executeQuery();
     }
 
@@ -134,5 +132,16 @@ public class ExecutableStatement {
     public ExecutableStatement append(byte[] obj) {
         statement.setBytes(pos++, obj);
         return this;
+    }
+
+    @SneakyThrows
+    public ExecutableStatement addBatch() {
+        statement.addBatch();
+        return this;
+    }
+
+    @Override
+    public void close() throws SQLException {
+        statement.close();
     }
 }

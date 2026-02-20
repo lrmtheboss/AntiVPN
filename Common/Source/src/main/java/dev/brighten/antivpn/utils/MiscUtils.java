@@ -22,6 +22,11 @@ import dev.brighten.antivpn.utils.json.JSONObject;
 import dev.brighten.antivpn.utils.json.JsonReader;
 
 import java.io.*;
+import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
@@ -70,6 +75,43 @@ public class MiscUtils {
             thread.setName(threadName);
             return thread;
         };
+    }
+
+    public static List<CIDRUtils> rangeToCidrs(BigInteger start, BigInteger end) throws UnknownHostException {
+        List<CIDRUtils> cidrs = new ArrayList<>();
+
+        while (start.compareTo(end) <= 0) {
+            // Find the number of trailing zero bits — this determines max block size alignment
+            int trailingZeros = start.equals(BigInteger.ZERO)
+                    ? 128  // handle the edge case
+                    : start.getLowestSetBit();
+
+            // Find the largest block that fits
+            BigInteger remaining = end.subtract(start).add(BigInteger.ONE);
+            int maxBits = remaining.bitLength() - 1;
+
+            int blockBits = Math.min(trailingZeros, maxBits);
+            int prefixLen = 32 - blockBits; // use 128 for IPv6
+
+            // Build the CIDR string
+            byte[] addrBytes = toFixedLengthBytes(start, 4); // use 16 for IPv6
+            String cidr = InetAddress.getByAddress(addrBytes).getHostAddress() + "/" + prefixLen;
+            cidrs.add(new CIDRUtils(cidr));
+
+            // Advance past this block
+            start = start.add(BigInteger.ONE.shiftLeft(blockBits));
+        }
+
+        return cidrs;
+    }
+
+    private static byte[] toFixedLengthBytes(BigInteger value, int length) {
+        byte[] raw = value.toByteArray();
+        byte[] result = new byte[length];
+        int srcPos = Math.max(0, raw.length - length);
+        int destPos = Math.max(0, length - raw.length);
+        System.arraycopy(raw, srcPos, result, destPos, Math.min(raw.length, length));
+        return result;
     }
 
     public static UUID lookupUUID(String playername) {

@@ -78,6 +78,8 @@ public class AllowlistCommand extends Command {
             String safeSearch = search != null ? search.replace("&", "") : null;
             boolean databaseEnabled = AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled();
 
+            AntiVPN.getInstance().getExecutor().log("Is Database Enabled: %s", databaseEnabled ? "yes" : "no");
+
             List<UUID> uuids = databaseEnabled
                     ? AntiVPN.getInstance().getDatabase().getAllWhitelisted()
                     : new ArrayList<>(AntiVPN.getInstance().getExecutor().getWhitelisted());

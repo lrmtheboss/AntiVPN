@@ -183,7 +183,7 @@ public class MongoVPN implements VPNDatabase {
         Document doc = new Document("setting", "whitelist");
         doc.append("ip_start", new Decimal128(new BigDecimal(cidr.getStartIpInt())));
         doc.append("ip_end", new Decimal128(new BigDecimal(cidr.getEndIpInt())));
-        doc.append("cidr_string", cidr.toString());
+        doc.append("cidr_string", cidr.getCidr());
 
         settingsDocument.insertOne(doc);
     }
@@ -210,7 +210,7 @@ public class MongoVPN implements VPNDatabase {
     public List<CIDRUtils> getAllWhitelistedIps() {
         List<CIDRUtils> ips = new ArrayList<>();
         settingsDocument.find(Filters.and(Filters.eq("setting", "whitelist"),
-                        Filters.exists("ip"))).forEach((Consumer<? super Document>) doc -> {
+                        Filters.exists("cidr_string"))).forEach((Consumer<? super Document>) doc -> {
                     try {
                         var cidr = new CIDRUtils(doc.getString("cidr_string"));
                         ips.add(cidr);

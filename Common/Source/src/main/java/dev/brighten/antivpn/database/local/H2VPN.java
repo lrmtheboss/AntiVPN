@@ -207,7 +207,7 @@ public class H2VPN implements VPNDatabase {
             return;
 
         try(var statement = Query.prepare("insert into `whitelisted-ranges` (`cidr_string`, `ip_start`, `ip_end`) values (?, ?, ?)")
-                .append(cidr.toString()).append(cidr.getStartIpInt()).append(cidr.getEndIpInt())) {
+                .append(cidr.getCidr()).append(cidr.getStartIpInt()).append(cidr.getEndIpInt())) {
             statement.execute();
 
         } catch (SQLException e) {
@@ -220,7 +220,7 @@ public class H2VPN implements VPNDatabase {
         if (!AntiVPN.getInstance().getVpnConfig().isDatabaseEnabled() || MySQL.isClosed())
             return;
 
-        try(var statement = Query.prepare("delete from `whitelisted-ranges` where `cidr_string` = ?").append(cidr.toString())) {
+        try(var statement = Query.prepare("delete from `whitelisted-ranges` where `cidr_string` = ?").append(cidr.getCidr())) {
             statement.execute();
 
         } catch (SQLException e) {
@@ -253,7 +253,11 @@ public class H2VPN implements VPNDatabase {
         try(var statement = Query.prepare("select `cidr_string`, `ip_start`, `ip_end` from `whitelisted-ranges`")) {
             statement.execute(set -> {
                         try {
-                            ips.add(new CIDRUtils(set.getString("cidr_string")));
+                            String cidrString = set.getString("cidr_string");
+
+                            AntiVPN.getInstance().getExecutor().log("CIDR String: %s", cidrString);
+                            ips.add(new CIDRUtils(cidrString));
+
                         } catch (UnknownHostException e) {
                             AntiVPN.getInstance().getExecutor()
                                     .logException("Could not format ip "

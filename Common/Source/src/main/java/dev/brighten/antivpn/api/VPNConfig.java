@@ -44,10 +44,7 @@ public class VPNConfig {
             defaultIp = new ConfigDefault<>("localhost", "database.ip", AntiVPN.getInstance()),
             defaultAlertMsg = new ConfigDefault<>("&8[&6KauriVPN&8] &e%player% &7has joined on a VPN/proxy" +
                     " &8(&f%reason%&8) &7in location &8(&f%city%&7, &f%country%&8)", "alerts.message",
-                    AntiVPN.getInstance()),
-            defaultWebhookUrl = new ConfigDefault<>("", "webhooks.url", AntiVPN.getInstance()),
-            defaultWebhookAuthToken = new ConfigDefault<>("", "webhooks.authToken", AntiVPN.getInstance()),
-            defaultWebhookFormat = new ConfigDefault<>("discord", "webhooks.format", AntiVPN.getInstance());
+                    AntiVPN.getInstance());
     private final ConfigDefault<Boolean> cacheResultsDefault = new ConfigDefault<>(true,
             "cachedResults", AntiVPN.getInstance()),
             defaultUseCredentials = new ConfigDefault<>(true,
@@ -60,12 +57,9 @@ public class VPNConfig {
                     AntiVPN.getInstance()),
             defaultWhitelistCountries = new ConfigDefault<>(true, "countries.whitelist",
                     AntiVPN.getInstance()),
-            defaultMetrics = new ConfigDefault<>(true, "bstats", AntiVPN.getInstance()),
-            defaultWebhookEnabled = new ConfigDefault<>(false, "webhooks.enabled", AntiVPN.getInstance()),
-            defaultWebhookUseAuth = new ConfigDefault<>(false, "webhooks.useAuthentication", AntiVPN.getInstance());
+            defaultMetrics = new ConfigDefault<>(true, "bstats", AntiVPN.getInstance());
     private final ConfigDefault<Integer>
-            defaultPort = new ConfigDefault<>(-1, "database.port", AntiVPN.getInstance()),
-            defaultWebhookTimeout = new ConfigDefault<>(5, "webhooks.timeout", AntiVPN.getInstance());
+            defaultPort = new ConfigDefault<>(-1, "database.port", AntiVPN.getInstance());
     private final ConfigDefault<List<String>> prefixWhitelistsDefault = new ConfigDefault<>(new ArrayList<>(),
             "prefixWhitelists", AntiVPN.getInstance()), defaultCommands = new ConfigDefault<>(
             Collections.singletonList("kick %player% VPNs are not allowed on our server!"), "commands.execute",
@@ -112,18 +106,6 @@ public class VPNConfig {
     private boolean alertToStaff;
     private boolean metrics;
     private boolean whitelistCountries;
-    @Getter
-    private String webhookUrl;
-    @Getter
-    private String webhookAuthToken;
-    @Getter
-    private String webhookFormat;
-    @Getter
-    private boolean webhookEnabled;
-    @Getter
-    private boolean webhookUseAuth;
-    @Getter
-    private int webhookTimeout;
 
     /**
      * If true, results will be cached to reduce queries to <a href="https://funkemunky.cc">...</a>
@@ -238,12 +220,6 @@ public class VPNConfig {
         whitelistCountries = defaultWhitelistCountries.get();
         countryKickCommands = defCountryKickCommands.get();
         countryVanillaKickReason = defaultCountryKickReason.get();
-        webhookEnabled = defaultWebhookEnabled.get();
-        webhookUrl = defaultWebhookUrl.get();
-        webhookUseAuth = defaultWebhookUseAuth.get();
-        webhookAuthToken = defaultWebhookAuthToken.get();
-        webhookTimeout = defaultWebhookTimeout.get();
-        webhookFormat = defaultWebhookFormat.get();
     }
 
 }

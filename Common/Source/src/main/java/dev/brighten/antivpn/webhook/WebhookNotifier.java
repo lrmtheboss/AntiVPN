@@ -152,7 +152,7 @@ public class WebhookNotifier {
         embed.put("description", "A player attempted to join using a VPN/proxy or from a blocked country.");
         
         // Add fields with player and detection information
-        JSONObject[] fields = new JSONObject[0];
+        JSONObject[] fields;
         if (result.response() != null) {
             fields = new JSONObject[] {
                 createDiscordField("Player", player.getName(), true),

@@ -14,7 +14,7 @@ def aggregateTestProjects = [
 
 allprojects {
     group = 'dev.brighten.antivpn'
-    version = '1.10.1.2'
+    version = '1.10.2'
 
     repositories {
         maven { url 'https://repo.papermc.io/repository/maven-public/' }
